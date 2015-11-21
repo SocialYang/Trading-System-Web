@@ -10,3 +10,11 @@ html5 websocket ctp
 运行pip_install.bat
 
 运行_TEST_.bat检查环境是否ok
+
+试运行
+======
+启动zmq_server下的runzmq.bat
+
+启动run.bat
+
+用firefox打开ctp.html

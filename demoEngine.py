@@ -25,7 +25,7 @@ class MainEngine:
     """主引擎，负责对API的调度"""
 
     #----------------------------------------------------------------------
-    def __init__(self, ws, account, _plus_path, justCopySignal=False, useZmq = False, zmqServer = "tcp://192.168.1.234:9999"):
+    def __init__(self, ws, account, _plus_path, justCopySignal=False, useZmq = False, zmqServer = "tcp://localhost:9999"):
         """Constructor
         :type self: object
         """
@@ -72,6 +72,8 @@ class MainEngine:
         self.volInstrument = {}
         self.subInstrument = set()
         self.subedInst = set()
+        
+        self.price = {} #   存储报价，分品种
 
         self.todo = 0
 
@@ -185,7 +187,7 @@ class MainEngine:
 #            self.position[_data['PosiDirection']] = _data['Position']
         self.havedposi = True
         self.__orders = {}
-    def openPosition(self,tr,volume):
+    def openPosition(self,symbol,tr,volume):
         event = Event(type_=EVENT_LOG)
         log = u'开仓'
         event.dict_['log'] = log
@@ -195,14 +197,16 @@ class MainEngine:
         offset = defineDict['THOST_FTDC_OF_Open']
         pricetype = defineDict['THOST_FTDC_OPT_LimitPrice']
         if tr>0:
-            price = self.ask+0.2*2.0
+            price = self.price[symbol]['ask']+0.2*2.0
             direction = defineDict["THOST_FTDC_D_Buy"]
         else:   
-            price = self.bid-0.2*2.0
+            price = self.price[symbol]['bid']-0.2*2.0
             direction = defineDict["THOST_FTDC_D_Sell"]
-        _ref = self.td.sendOrder(self.symbol,self.exchangeid,price,pricetype,volume,direction,offset)
-        self.__orders[_ref] = (self.symbol,self.exchangeid,price,pricetype,volume,direction,offset)
-    def closePosition(self,tr,volume):
+        _instrumentid = self.dictInstrument[symbol]
+        exchangeid = _instrumentid["ExchangeID"]
+        _ref = self.td.sendOrder(symbol,exchangeid,price,pricetype,volume,direction,offset)
+        self.__orders[_ref] = (symbol,exchangeid,price,pricetype,volume,direction,offset)
+    def closePosition(self,symbol,tr,volume):
         event = Event(type_=EVENT_LOG)
         log = u'平仓'
         event.dict_['log'] = log
@@ -212,14 +216,16 @@ class MainEngine:
         offset = defineDict['THOST_FTDC_OF_Close']
         pricetype = defineDict['THOST_FTDC_OPT_LimitPrice']
         if tr<0:
-            price = self.ask+0.2*2.0
+            price = self.price[symbol]['ask']+0.2*2.0
             direction = defineDict["THOST_FTDC_D_Buy"]
         else:   
-            price = self.bid-0.2*2.0
+            price = self.price[symbol]['bid']-0.2*2.0
             direction = defineDict["THOST_FTDC_D_Sell"]
-        _ref = self.td.sendOrder(self.symbol,self.exchangeid,price,pricetype,volume,direction,offset)
-        self.__orders[_ref] = (self.symbol,self.exchangeid,price,pricetype,volume,direction,offset)
-    def closeTodayPosition(self,tr,volume):
+        _instrumentid = self.dictInstrument[symbol]
+        exchangeid = _instrumentid["ExchangeID"]
+        _ref = self.td.sendOrder(symbol,exchangeid,price,pricetype,volume,direction,offset)
+        self.__orders[_ref] = (symbol,exchangeid,price,pricetype,volume,direction,offset)
+    def closeTodayPosition(self,symbol,tr,volume):
         event = Event(type_=EVENT_LOG)
         log = u'平今仓'
         event.dict_['log'] = log
@@ -229,27 +235,42 @@ class MainEngine:
         offset = defineDict['THOST_FTDC_OF_CloseToday']
         pricetype = defineDict['THOST_FTDC_OPT_LimitPrice']
         if tr<0:
-            price = self.ask+0.2*2.0
+            price = self.price[symbol]['ask']+0.2*2.0
             direction = defineDict["THOST_FTDC_D_Buy"]
         else:   
-            price = self.bid-0.2*2.0
+            price = self.price[symbol]['bid']-0.2*2.0
             direction = defineDict["THOST_FTDC_D_Sell"]
-        _ref = self.td.sendOrder(self.symbol,self.exchangeid,price,pricetype,volume,direction,offset)
-        self.__orders[_ref] = (self.symbol,self.exchangeid,price,pricetype,volume,direction,offset)
+        _instrumentid = self.dictInstrument[symbol]
+        exchangeid = _instrumentid["ExchangeID"]
+        _ref = self.td.sendOrder(symbol,exchangeid,price,pricetype,volume,direction,offset)
+        self.__orders[_ref] = (symbol,exchangeid,price,pricetype,volume,direction,offset)
+    def zmq_heart(self):
+        if self.socket:
+            self.socket.send(bytes(json.dumps({"act":"ping"})))
+            try:
+                _msg = self.socket.recv()
+                if _msg != "pong":print("zmq timeout")
+            except Exception,e:
+                print("zmq_heart error",e)
+        else:
+            print("no zmq")
     def get_tick(self,event):
         _data = event.dict_['data']
-        self.ask = _data['AskPrice1']
-        self.bid = _data['BidPrice1']
-        price = (self.ask+self.bid)/2.0
+        _ask = _data['AskPrice1']
+        _bid = _data['BidPrice1']
+        _symbol = _data['InstrumentID']
+        _exchange =  self.dictInstrument[_symbol]["ExchangeID"]
+        _price = (_ask+_bid)/2.0
+        self.price[_symbol] = {"ask":_ask,"price":_price,"bid":_bid}
         if self.socket:
             if self.justCopySignal:
-                self.socket.send(bytes("result_get"))
+                self.socket.send(bytes(json.dumps({"act":"getresult"})))
             else:
-                self.socket.send(bytes(str(price)))
+                self.socket.send(bytes(json.dumps({"data":_price})))
         else:
             return
         _bk = int(self.socket.recv())
-        if self.symbol[:2] in ['IF','IH','IC'] and _data['UpdateTime'][:4]=='15:1':
+        if _symbol[:2] in ['IF','IH','IC'] and _data['UpdateTime'][:4]=='15:1':
             _bk = 0
         self.todo = _bk
         if self.lastError in [31,50]:
@@ -264,39 +285,39 @@ class MainEngine:
             _short = defineDict["THOST_FTDC_PD_Short"]
             if self.todo==0:
                 if self.position.get(_long,0)>0:
-                    self.closePosition(1,self.position[_long])
+                    self.closePosition(_symbol,1,self.position[_long])
                     self.havedposi = False
                 if self.todayposition.get(_long,0)>0:
-                    self.closeTodayPosition(1,self.todayposition[_long])
+                    self.closeTodayPosition(_symbol,1,self.todayposition[_long])
                     self.havedposi = False
                     
                 if self.position.get(_short,0)>0:
-                    self.closePosition(-1,self.position[_short])
+                    self.closePosition(_symbol,-1,self.position[_short])
                     self.havedposi = False
                 if self.todayposition.get(_short,0)>0:
-                    self.closeTodayPosition(-1,self.todayposition[_short])
+                    self.closeTodayPosition(_symbol,-1,self.todayposition[_short])
                     self.havedposi = False
                     
             def do_it(_todo,_pass,_reverse,d_pass,d_reverse):
                 if self.position.get(_reverse,0)>0:
-                    self.closePosition(d_reverse,self.position[_reverse])
+                    self.closePosition(_symbol,d_reverse,self.position[_reverse])
                     self.havedposi = False
                 if self.todayposition.get(_reverse,0)>0:
-                    self.closeTodayPosition(d_reverse,self.todayposition[_reverse])
+                    self.closeTodayPosition(_symbol,d_reverse,self.todayposition[_reverse])
                     self.havedposi = False
                 _haved = self.position.get(_pass,0)+self.todayposition.get(_pass,0)
                 if _todo>_haved:
-                    self.openPosition(d_pass,_todo-_haved)
+                    self.openPosition(_symbol,d_pass,_todo-_haved)
                     self.havedposi = False
                 if _todo<_haved:
                     if self.position.get(_pass,0)>0:
-                        self.closePosition(d_pass,min(self.position[_pass],_haved-_todo))
+                        self.closePosition(_symbol,d_pass,min(self.position[_pass],_haved-_todo))
                         self.havedposi = False
                         if self.position[_pass]<_haved-_todo:
-                            self.closeTodayPosition(d_pass,_haved-_todo-self.position[_pass])
+                            self.closeTodayPosition(_symbol,d_pass,_haved-_todo-self.position[_pass])
                             self.havedposi = False
                     elif self.todayposition.get(_pass,0)>0:
-                        self.closeTodayPosition(d_pass,_haved-_todo)
+                        self.closeTodayPosition(_symbol,d_pass,_haved-_todo)
                         self.havedposi = False
 
             if self.todo>0:
