@@ -19,17 +19,23 @@
                 document['zone'].value = 'localhost'
 
             def addnew(ev):
+                def check_front(a):
+                    return a[:4]=="tcp:"
                 one = {}
-                for _k in ["userid","password","mdfront","tdfront","brokerid"]:
-                    one[_k] = document[_k].value
-                if 'ctp_account' in store:
-                    _acc = json.loads(store['ctp_account'])
+                if check_front(document['mdfront'].value) and check_front(document['mdfront'].value):
+                    for _k in ["userid","password","mdfront","tdfront","brokerid"]:
+                        one[_k] = document[_k].value
+                    if 'ctp_account' in store:
+                        _acc = json.loads(store['ctp_account'])
+                    else:
+                        _acc = {}
+                    _acc[one['userid']] = one
+                    store['ctp_account'] = json.dumps(_acc)
+                    document['console'].clear()
+                    document['console'] <= "账号["+one['userid']+"]设置成功"
                 else:
-                    _acc = {}
-                _acc[one['userid']] = one
-                store['ctp_account'] = json.dumps(_acc)
-                document['console'].clear()
-                document['console'] <= "账号["+one['userid']+"]设置成功"
+                    document['console'].clear()
+                    document['console'] <= "前置地址错误"
 
             def save(ev):
                 address = document['zone'].value
