@@ -3,6 +3,8 @@ html5 websocket ctp
 
 环境搭建
 ========
+win7 x86
+
 安装activepython2.7 x86
 
 安装vcredist x86最新版
