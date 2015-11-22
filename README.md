@@ -1,6 +1,8 @@
 # web_ctp
 html5 websocket ctp
 
+技术交流群  515942461
+
 环境搭建
 ========
 win7 x86
