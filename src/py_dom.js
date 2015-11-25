@@ -334,7 +334,6 @@ $Style.__class__ = $B.$factory
 $Style.$dict = $StyleDict
 $StyleDict.$factory = $Style
 
-
 var DOMNode = $B.DOMNode = function(elt){ 
     // returns the element, enriched with an attribute $brython_id for 
     // equality testing and with all the attributes of Node
@@ -369,11 +368,19 @@ DOMNodeDict.__add__ = function(self,other){
     var res = $TagSum()
     res.children = [self], pos=1
     if(isinstance(other,$TagSum)){
-        for(var $i=0;$i<other.children.length;$i++){res.children[pos++]=other.children[$i]}
+        res.children = res.children.concat(other.children)
     } else if(isinstance(other,[_b_.str,_b_.int,_b_.float,_b_.list,
                                 _b_.dict,_b_.set,_b_.tuple])){
         res.children[pos++]=DOMNode(document.createTextNode(_b_.str(other)))
-    }else{res.children[pos++]=other}
+    }else if(isinstance(other, DOMNode)){
+        res.children[pos++] = other
+    }else{
+        // If other is iterable, add all items
+        try{res.children=res.children.concat(_b_.list(other))}
+        catch(err){throw _b_.TypeError("can't add '"+
+            $B.get_class(other).__name__+"' object to DOMNode instance")
+        }
+    }
     return res
 }
 
@@ -382,7 +389,7 @@ DOMNodeDict.__bool__ = function(self){return true}
 DOMNodeDict.__class__ = $B.$type
 
 DOMNodeDict.__contains__ = function(self,key){
-    try{self.__getitem__(key);return True}
+    try{DOMNodeDict.__getitem__(self, key);return True}
     catch(err){return False}
 }
 
@@ -401,7 +408,8 @@ DOMNodeDict.__delitem__ = function(self,key){
         if(res){res.parentNode.removeChild(res)}
         else{throw KeyError(key)}
     }else{ // other node : remove by rank in child nodes
-        self.elt.removeChild(self.elt.childNodes[key])
+        console.log('delitem')
+        self.elt.parentNode.removeChild(self.elt)
     }
 }
 
@@ -410,20 +418,27 @@ DOMNodeDict.__eq__ = function(self,other){
 }
 
 DOMNodeDict.__getattribute__ = function(self,attr){
+
     switch(attr) {
       case 'class_name':
       case 'children':
       case 'html':
       case 'id':
-      case 'left':
       case 'parent':
       case 'query':
       case 'text':
-      case 'top':
       case 'value':
-      case 'height':
-      case 'width':
         return DOMNodeDict[attr](self)
+
+      case 'height':
+      case 'left':
+      case 'top':
+      case 'width':
+        if(self.elt instanceof SVGElement){
+            return self.elt.getAttributeNS(null, attr)
+        }
+        try{return _b_.int($getPosition(self.elt)[attr])}
+        catch(err){return _b_.getattr(self.elt, attr)}      
       case 'clear':
       case 'remove':
         return function(){DOMNodeDict[attr](self,arguments[0])}
@@ -449,6 +464,7 @@ DOMNodeDict.__getattribute__ = function(self,attr){
         attr='location'
         break
     }//switch
+
     if(self.elt.getAttribute!==undefined){
         res = self.elt.getAttribute(attr)
         // IE returns the properties of a DOMNode (eg parentElement)
@@ -459,6 +475,18 @@ DOMNodeDict.__getattribute__ = function(self,attr){
             return res
         }
     }
+
+    if(self.elt.getAttributeNS!==undefined){
+        res = self.elt.getAttributeNS(null, attr)
+        // If attribute is not set, modern browsers return undefined or null
+        // but old versions of Android browser return the empty string !!!
+        if(res!==undefined && res!==null && res!="" &&
+            self.elt[attr]===undefined){
+            // now we're sure it's an attribute
+            return res
+        }
+    }
+        
     if(self.elt[attr]!==undefined){
         res = self.elt[attr]
         if(typeof res==="function"){
@@ -528,8 +556,21 @@ DOMNodeDict.__le__ = function(self,other){
     }else if(typeof other==="string" || typeof other==="number"){
         var $txt = document.createTextNode(other.toString())
         elt.appendChild($txt)
-    }else{ // other is a DOMNode instance
+    }else if(isinstance(other, DOMNode)){
+        // other is a DOMNode instance
         elt.appendChild(other.elt)
+    }else{ 
+        try{
+            // If other is an iterable, add the items
+            var items = _b_.list(other)
+            for(var i=0; i<items.length; i++){
+                DOMNodeDict.__le__(self, items[i])
+            }
+        }catch(err){
+            throw _b_.TypeError("can't add '"+
+                $B.get_class(other).__name__+
+                "' object to DOMNode instance")
+        }
     }
 }
 
@@ -584,6 +625,10 @@ DOMNodeDict.__setattr__ = function(self,attr,value){
           return DOMNodeDict['set_'+attr](self,value)
         }
         var attr1 = attr.replace('_','-').toLowerCase()
+        if(self.elt instanceof SVGElement){
+            self.elt.setAttributeNS(null, attr1, value)
+            return
+        }
         if(self.elt[attr1]!==undefined){self.elt[attr1]=value;return}
         var res = self.elt.getAttribute(attr1)
         if(res!==undefined&&res!==null){self.elt.setAttribute(attr1,value)}
@@ -623,9 +668,11 @@ DOMNodeDict.bind = function(self,event){
                         var msg = _b_.getattr(err, 'info')+
                             '\n'+err.__class__.__name__
                         if(err.args){msg += ': '+err.args[0]}
-                        getattr($B.stderr,"write")(msg)
+                        try{getattr($B.stderr,"write")(msg)}
+                        catch(err){console.log(msg)}
                     }else{
-                        getattr($B.stderr,"write")(err)
+                        try{getattr($B.stderr,"write")(err)}
+                        catch(err1){console.log(err)}
                     }
                 }
             }}
@@ -793,15 +840,7 @@ DOMNodeDict.getSelectionRange = function(self){ // for TEXTAREA
     }
 }
 
-DOMNodeDict.height = function(self){
-    return _b_.int($getPosition(self.elt)["height"])
-}
-
 DOMNodeDict.html = function(self){return self.elt.innerHTML}
-
-DOMNodeDict.left = function(self){
-    return _b_.int($getPosition(self.elt)["left"])
-}
 
 DOMNodeDict.id = function(self){
     if(self.elt.id !== undefined) return self.elt.id
@@ -831,10 +870,6 @@ DOMNodeDict.remove = function(self,child){
         }else{ch_elt = ch_elt.parentElement}
     }
     if(!flag){throw _b_.ValueError('element '+child+' is not inside '+self)}
-}
-
-DOMNodeDict.top = function(self){
-    return _b_.int($getPosition(self.elt)["top"])
 }
 
 DOMNodeDict.reset = function(self){ // for FORM
@@ -873,11 +908,6 @@ DOMNodeDict.set_class_name = function(self,arg){
 
 DOMNodeDict.set_html = function(self,value){
     self.elt.innerHTML=str(value)
-}
-
-DOMNodeDict.set_left = function(self, value){
-    console.log('set left')
-    self.elt.style.left = value
 }
 
 DOMNodeDict.set_style = function(self,style){ // style is a dict
@@ -978,11 +1008,6 @@ DOMNodeDict.unbind = function(self,event){
 
 DOMNodeDict.value = function(self){return self.elt.value}
 
-DOMNodeDict.width = function(self){
-    return _b_.int($getPosition(self.elt)["width"])
-}
-
-
 // return query string as an object with methods to access keys and values
 // same interface as cgi.FieldStorage, with getvalue / getlist / getfirst
 var $QueryDict = {__class__:$B.$type,__name__:'query'}
@@ -1025,7 +1050,7 @@ $QueryDict.getlist = function(self,key){
 }
 
 $QueryDict.getvalue = function(self,key,_default){
-    try{return self.__getitem__(key)}
+    try{return $QueryDict.__getitem__(self, key)}
     catch(err){
         if(_default===undefined) return None
         return _default
