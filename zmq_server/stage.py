@@ -5,10 +5,10 @@ from mongo_settings import *
 
 class Stage:
     def get_result(self):
-        out = {}
-        c = self.cache
-        saved = self.state
 
+        c = self.cache
+        
+        pos = self.todo[0]        
         _Max = 20
         _result = list(self.db[pos].find({},sort=[('_id',desc)],limit=_Max))
         
@@ -77,7 +77,8 @@ class Stage:
     def save(self,Pos,Dict):
         self.db[Pos].save(Dict)
 #=====================================================================
-'''    def get_image(self,pos,lens,group,offset=0):
+'''
+    def get_image(self,pos,lens,group,offset=0):
         data = self.db[int(pos)]
         result = list(data.find(sort=[('_id',desc)],limit=int(lens),skip=int(offset)*int(lens)))
         _l = self.state.get('his',['none'])[::-1]
@@ -87,8 +88,7 @@ class Stage:
         data = self.db[int(pos)]
         result = list(data.find(sort=[('_id',desc)],limit=int(lens),skip=int(offset)*int(lens)))
         out = SVG(group,result[::-1],[self.symbol+" "+str(datetime.datetime.now())[:19]],data).to_html()
-        return out
-'''
+        return out'''
 ############################################################################################################
 '''
 #        end
