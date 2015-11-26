@@ -1,5 +1,5 @@
 import time,datetime
-from svgcandle import *
+#from svgcandle import *
 from math import ceil
 from mongo_settings import *
 
@@ -77,7 +77,7 @@ class Stage:
     def save(self,Pos,Dict):
         self.db[Pos].save(Dict)
 #=====================================================================
-    def get_image(self,pos,lens,group,offset=0):
+'''    def get_image(self,pos,lens,group,offset=0):
         data = self.db[int(pos)]
         result = list(data.find(sort=[('_id',desc)],limit=int(lens),skip=int(offset)*int(lens)))
         _l = self.state.get('his',['none'])[::-1]
@@ -88,6 +88,7 @@ class Stage:
         result = list(data.find(sort=[('_id',desc)],limit=int(lens),skip=int(offset)*int(lens)))
         out = SVG(group,result[::-1],[self.symbol+" "+str(datetime.datetime.now())[:19]],data).to_html()
         return out
+'''
 ############################################################################################################
 '''
 #        end
