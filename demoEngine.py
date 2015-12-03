@@ -137,10 +137,11 @@ class MainEngine:
                 _kr = -1
             else:
                 _kr = 0
+            symbol = _saved[0]
             if _tr*_kr>0:
-                price = float(_saved[2])+0.2
+                price = float(_saved[2])+self.dictInstrument[symbol]['PriceTick']
             else:
-                price = float(_saved[2])-0.2
+                price = float(_saved[2])-self.dictInstrument[symbol]['PriceTick']
             _ref = self.td.sendOrder(_saved[0],_saved[1],price,_saved[3],_saved[4],_saved[5],_saved[6])
             self.__orders[_ref] = (_saved[0],_saved[1],price,_saved[3],_saved[4],_saved[5],_saved[6])
     def get_trade(self,event):
@@ -173,10 +174,11 @@ class MainEngine:
                 _kr = -1
             else:
                 _kr = 0
+            symbol = _saved[0]
             if _tr*_kr>0:
-                price = float(_saved[2])+0.2
+                price = float(_saved[2])+self.dictInstrument[symbol]['PriceTick']
             else:
-                price = float(_saved[2])-0.2
+                price = float(_saved[2])-self.dictInstrument[symbol]['PriceTick']
             _ref = self.td.sendOrder(_saved[0],_saved[1],price,_saved[3],_goon,_saved[5],_saved[6])
             self.__orders[_ref] = (_saved[0],_saved[1],price,_saved[3],_goon,_saved[5],_saved[6])
     def get_position(self,event):
@@ -197,10 +199,10 @@ class MainEngine:
         offset = defineDict['THOST_FTDC_OF_Open']
         pricetype = defineDict['THOST_FTDC_OPT_LimitPrice']
         if tr>0:
-            price = self.price[symbol]['ask']+0.2*2.0
+            price = self.price[symbol]['ask']+self.dictInstrument[symbol]['PriceTick']*2.0
             direction = defineDict["THOST_FTDC_D_Buy"]
         else:   
-            price = self.price[symbol]['bid']-0.2*2.0
+            price = self.price[symbol]['bid']-self.dictInstrument[symbol]['PriceTick']*2.0
             direction = defineDict["THOST_FTDC_D_Sell"]
         _instrumentid = self.dictInstrument[symbol]
         exchangeid = _instrumentid["ExchangeID"]
@@ -216,10 +218,10 @@ class MainEngine:
         offset = defineDict['THOST_FTDC_OF_Close']
         pricetype = defineDict['THOST_FTDC_OPT_LimitPrice']
         if tr<0:
-            price = self.price[symbol]['ask']+0.2*2.0
+            price = self.price[symbol]['ask']+self.dictInstrument[symbol]['PriceTick']*2.0
             direction = defineDict["THOST_FTDC_D_Buy"]
         else:   
-            price = self.price[symbol]['bid']-0.2*2.0
+            price = self.price[symbol]['bid']-self.dictInstrument[symbol]['PriceTick']*2.0
             direction = defineDict["THOST_FTDC_D_Sell"]
         _instrumentid = self.dictInstrument[symbol]
         exchangeid = _instrumentid["ExchangeID"]
@@ -235,10 +237,10 @@ class MainEngine:
         offset = defineDict['THOST_FTDC_OF_CloseToday']
         pricetype = defineDict['THOST_FTDC_OPT_LimitPrice']
         if tr<0:
-            price = self.price[symbol]['ask']+0.2*2.0
+            price = self.price[symbol]['ask']+self.dictInstrument[symbol]['PriceTick']*2.0
             direction = defineDict["THOST_FTDC_D_Buy"]
         else:   
-            price = self.price[symbol]['bid']-0.2*2.0
+            price = self.price[symbol]['bid']-self.dictInstrument[symbol]['PriceTick']*2.0
             direction = defineDict["THOST_FTDC_D_Sell"]
         _instrumentid = self.dictInstrument[symbol]
         exchangeid = _instrumentid["ExchangeID"]
@@ -344,6 +346,7 @@ class MainEngine:
     #----------------------------------------------------------------------
     def login(self):
         """登陆"""
+        print("me.login")
         self.td.login()
         self.md.login()
     
