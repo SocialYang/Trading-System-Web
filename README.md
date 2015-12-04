@@ -1,5 +1,8 @@
 # web_ctp
-html5 websocket ctp
+
+目标:使用web界面监控ctp期货接口的运行
+
+当前:web界面用brython控制，通过websocket与ctp交互，ctp通过zmq与策略层(zmq_server中)通信
 
 技术交流群  515942461
 =====================
