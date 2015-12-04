@@ -56,7 +56,6 @@ class MainEngine:
         self.lastError = 0
         self.lastTodo = 0
 
-        self.__timer = time()+60
         self.__orders = {}
         self.__retry = 0
         self.__maxRetry = 5
@@ -80,7 +79,7 @@ class MainEngine:
         self.ee.register(EVENT_ERROR,       self.get_error)
         self.ee.register(EVENT_INSTRUMENT,  self.insertInstrument)
         self.ee.register(EVENT_TIMER,       self.getAccountPosition)
-        self.ee.register(EVENT_TRADE,       self.get_trade)
+#        self.ee.register(EVENT_TRADE,       self.get_trade)
         self.ee.register(EVENT_ORDER,       self.get_order)
         self.ee.register(EVENT_TICK,        self.get_tick)
         self.ee.register(EVENT_POSITION,    self.get_position)
@@ -112,19 +111,18 @@ class MainEngine:
     def get_order(self,event):
         _data = event.dict_['data']
         if _data['OrderStatus'] == '5':
-            self.__retry += 1
-            if int(_data['OrderRef']) in self.__orders:
-                _saved = self.__orders.pop(int(_data['OrderRef']))
-            else:
-                self.__orders = {}
-                return 0
-            if self.__retry>=self.__maxRetry:
-                self.__retry = 0
-                return 0
             event = Event(type_=EVENT_LOG)
             log = u'未成交已撤单，补单'
             event.dict_['log'] = log
             self.ee.put(event)
+            self.__retry += 1
+            if int(_data['OrderRef']) in self.__orders:
+                _saved = self.__orders.pop(int(_data['OrderRef']))
+            else:
+                return 0
+            if self.__retry>=self.__maxRetry:
+                self.__retry = 0
+                return 0
             if _saved[6] == defineDict['THOST_FTDC_OF_Open']:
                 _tr = 1
             elif _saved[6] == defineDict['THOST_FTDC_OF_Close']:
@@ -144,24 +142,19 @@ class MainEngine:
                 price = float(_saved[2])-self.dictInstrument[symbol]['PriceTick']
             _ref = self.td.sendOrder(_saved[0],_saved[1],price,_saved[3],_saved[4],_saved[5],_saved[6])
             self.__orders[_ref] = (_saved[0],_saved[1],price,_saved[3],_saved[4],_saved[5],_saved[6])
-    def get_trade(self,event):
-        _data = event.dict_['data']
-        print('get_trade',int(_data['OrderRef']),self.todo)
-        _done = _data['Volume']
-        if int(_data['OrderRef']) in self.__orders:
-            _saved = self.__orders.pop(int(_data['OrderRef']))
-            _goon = _saved[4] - _done
-        else:
-            _goon = 0
-        if _goon != 0:
+        elif _data['OrderStatus'] == '2':
+            event = Event(type_=EVENT_LOG)
+            log = u'部分成交，其余已撤单，补单'
+            event.dict_['log'] = log
+            self.ee.put(event)
             self.__retry += 1
+            if int(_data['OrderRef']) in self.__orders:
+                _saved = self.__orders.pop(int(_data['OrderRef']))
+            else:
+                return 0
             if self.__retry>=self.__maxRetry:
                 self.__retry = 0
                 return 0
-            event = Event(type_=EVENT_LOG)
-            log = u'未全部成交，补单'
-            event.dict_['log'] = log
-            self.ee.put(event)
             if _saved[6] == defineDict['THOST_FTDC_OF_Open']:
                 _tr = 1
             elif _saved[6] == defineDict['THOST_FTDC_OF_Close']:
@@ -179,8 +172,18 @@ class MainEngine:
                 price = float(_saved[2])+self.dictInstrument[symbol]['PriceTick']
             else:
                 price = float(_saved[2])-self.dictInstrument[symbol]['PriceTick']
-            _ref = self.td.sendOrder(_saved[0],_saved[1],price,_saved[3],_goon,_saved[5],_saved[6])
-            self.__orders[_ref] = (_saved[0],_saved[1],price,_saved[3],_goon,_saved[5],_saved[6])
+            _todo = _saved[4]-_data['VolumeTraded']
+            _ref = self.td.sendOrder(_saved[0],_saved[1],price,_saved[3],_todo,_saved[5],_saved[6])
+            self.__orders[_ref] = (_saved[0],_saved[1],price,_saved[3],_todo,_saved[5],_saved[6])
+        elif _data['OrderStatus'] == '0':
+            event = Event(type_=EVENT_LOG)
+            log = u'全部成交'
+            event.dict_['log'] = log
+            self.ee.put(event)
+            if int(_data['OrderRef']) in self.__orders:
+                _saved = self.__orders.pop(int(_data['OrderRef']))
+                return 0
+            self.__retry = 0
     def get_position(self,event):
         _data = event.dict_['data']
         if _data['TodayPosition']:
