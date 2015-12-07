@@ -52,7 +52,7 @@
 
             def change_color(id):
                 global _background
-                _background[id] = 150
+                _background[id] = 240 #240 is close, 150 is open
 
             def add_log(content):
                 _doc = document['log']
@@ -89,7 +89,7 @@
 
             DirectionDict = {"0":"买","1":"卖"}
             DirectionStyle = {"0":{"color":"red"},"1":{"color":"green"},"2":{"color":"red"},"3":{"color":"green"}}
-            OffsetFlagDict = {"0":"开仓","3":"平仓"}
+            OffsetFlagDict = {"0":"开仓","1":"平仓","2":"强平","3":"平今仓","4":"平昨仓","5":"强减","6":"本地强平"}
             Orders = []
             def event_order(_msg):
                 global Orders
