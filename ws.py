@@ -27,7 +27,10 @@ def ws_ctpaccount(data):
     for k,v in account.items():
         if k not in me:
             _plus = make_plus(v['userid'])
-            me[k] = MainEngine(cs,v,_plus,useZmq = True)
+            if 1:
+                me[k] = MainEngine(cs,v,_plus,useZmq = True)
+            else:
+                me[k] = MainEngine(cs,v,_plus,useZmq = False)
             print("account "+k+" started")
 
 def ws_getinstrument(data):
@@ -41,14 +44,13 @@ def index():
 
 @get('/test')
 def sendit():
-    for one in cs:
-        import shelve,json
-        f = shelve.open("debug_event_types")
-        for _ee in f.values():
-            print(_ee)
-            one.send(json.dumps(_ee))
-        f.close()
-    return "ok"
+    out = []
+    import shelve,json
+    f = shelve.open("debug_event_types")
+    for _ee in f.values():
+        out.append(json.dumps(_ee))
+    f.close()
+    return '<br/>'.join(out)
 
 funcs = {
 "ws_ctpaccount":ws_ctpaccount,

@@ -276,6 +276,9 @@ $ListDict.__setitem__ = function(){
     var $=$B.args('__setitem__',3,{self:null,key:null,value:null},
         ['self','key','value'],arguments,{},null,null),
         self=$.self, arg=$.key, value=$.value
+    //if(isinstance(self,tuple)){
+        //throw _b_.TypeError("'tuple' object does not support item assignment")
+    //}
     if(isinstance(arg,_b_.int)){
         var pos = arg
         if(arg<0) pos=self.length+pos
@@ -284,9 +287,11 @@ $ListDict.__setitem__ = function(){
         return $N
     }
     if(isinstance(arg,_b_.slice)){
-        var s = _b_.slice.$dict.$conv_for_seq(arg, self.length)
-        if(arg.step===null){$B.set_list_slice(self, s.start, s.stop, value)}
-        else{$B.set_list_slice_step(self, s.start, s.stop, s.step, value)}
+        var start = arg.start===None ? null : arg.start
+        var stop = arg.stop===None ? null : arg.stop
+        var step = arg.step===None ? null : arg.step
+        if(step===null){$B.set_list_slice(self,start,stop,value)}
+        else{$B.set_list_slice_step(self,start,stop,step,value)}
         return $N
     }
 
@@ -515,12 +520,6 @@ $ListDict.sort = function(self){
 }
 
 $B.set_func_names($ListDict)
-
-// function used for list literals
-$B.$list = function(t){
-    t.__brython__ = true;
-    return t
-}
 
 // constructor for built-in type 'list'
 function list(){

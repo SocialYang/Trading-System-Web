@@ -1,15 +1,10 @@
 import sys
-from browser import console
-
 def print_exc(file=sys.stderr):
     exc = __BRYTHON__.current_exception
+    file.write(exc.info)
     if isinstance(exc, SyntaxError):
-        file.write('\n module %s line %s' %(exc.args[1], exc.args[2]))
-        offset = exc.args[3]
-        file.write('\n  '+exc.args[4])
+        offset = exc.args[1][2]
         file.write('\n  '+offset*' '+'^')
-    else:
-        file.write(exc.info)
     file.write('\n'+exc.__name__)
     if exc.args:
         file.write(': %s' %exc.args[0])
@@ -24,6 +19,3 @@ def format_exc(limit=None,chain=True):
 
 def format_exception(_type, value, tb, limit=None, chain=True):
     return ['%s\n' %_type,'%s\n' %value]    
-
-def extract_tb(tb, limit=None):
-    return tb

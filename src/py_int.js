@@ -165,6 +165,10 @@ $IntDict.__floordiv__ = function(self,other){
     $err("//",other)
 }
 
+$IntDict.__getitem__ = function(){
+    throw _b_.TypeError("'int' object is not subscriptable")
+}
+
 $IntDict.__hash__ = function(self){
    if (self === undefined) {
       return $IntDict.__hashvalue__ || $B.$py_next_hash--  // for hash of int type (not instance of int)
@@ -260,7 +264,7 @@ $IntDict.__new__ = function(cls){
     return {__class__:cls.$dict}
 }
 
-$IntDict.__pos__ = function(self){return self}
+//$IntDict.__or__ = function(self,other){return self | other} // bitwise OR
 
 $IntDict.__pow__ = function(self,other){
     if(isinstance(other, int)) {

@@ -29,6 +29,7 @@ class BaseHook:
             self._modpath=_path
             return self
           except urllib.error.HTTPError as e:
+            print(str(e))
             self._modpath=''
             self._module=''
             

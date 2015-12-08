@@ -210,23 +210,6 @@ function sub_pos(v1, v2){
 }
 
 // Special methods to implement operations on instances of LongInt
-$LongIntDict.$from_float = function(value){
-    var s = Math.abs(value).toString(),
-        value = s
-    if(s.search('e')>-1){
-        var t = /-?(\d)(\.\d+)?e([+-])(\d*)/.exec(s),
-            n1 = t[1], n2 = t[2], pos = t[3], exp = t[4]
-        if(pos=='+'){
-            if(n2===undefined){
-                value = n1+'0'.repeat(exp-1)
-            }else{
-                value = n1+n2+'0'.repeat(exp-1-n2.length)
-            }
-        }        
-    }
-    return {__class__:$LongIntDict, value: value,
-        pos: value >= 0}
-}
 
 $LongIntDict.__abs__ = function(self){
     return {__class__:$LongIntDict, value: self.value, pos:true}
@@ -446,7 +429,6 @@ $LongIntDict.__or__ = function(self, other){
     return intOrLong(LongInt(res, 2))
 }
 
-$LongIntDict.__pos__ = function(self){return self}
 
 $LongIntDict.__pow__ = function(self, power){
     if (typeof power == "number") {

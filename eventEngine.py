@@ -13,7 +13,7 @@ from thread import start_new_thread as th_fork
 from eventType import *
 import json,shelve
 
-_DEBUG_ = True
+_DEBUG_ = False
 ########################################################################
 class EventEngine:
     """

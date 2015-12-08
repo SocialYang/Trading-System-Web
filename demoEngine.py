@@ -176,15 +176,27 @@ class MainEngine:
         _data = event.dict_['data']
     def get_position(self,event):
         _data = event.dict_['data']
-        if _data['TodayPosition']:
-            self.todayposition[_data['PosiDirection']] = _data['TodayPosition']
-        if _data['Position']:pass
-#            self.position[_data['PosiDirection']] = _data['Position']
+        if _data['TodayPosition'] and _data['Position']>0:
+            self.todayposition[(_data['InstrumentID'],_data['PosiDirection'])] = _data['TodayPosition']
+            print("today", self.todayposition)
+            if _data['InstrumentID'] not in self.subInstrument:
+                if _data['InstrumentID'] not in self.subedInst:
+                    self.subscribe(_data['InstrumentID'],'')
+                elif _data['InstrumentID'] in self.price:
+                    self.closeTodayPosition(str(_data['InstrumentID']),str(int(_data['PosiDirection'])-2),_data['TodayPosition'])
+        if _data['YdPosition'] and _data['Position']>0:
+            self.position[(_data['InstrumentID'],_data['PosiDirection'])] = _data['YdPosition']
+            print("old", self.position)
+            if _data['InstrumentID'] not in self.subInstrument:
+                if _data['InstrumentID'] not in self.subedInst:
+                    self.subscribe(_data['InstrumentID'],'')
+                elif _data['InstrumentID'] in self.price:
+                    self.closePosition(str(_data['InstrumentID']),str(int(_data['PosiDirection'])-2),_data['YdPosition'])
         self.havedposi = True
         self.__orders = {}
     def openPosition(self,symbol,tr,volume):
         event = Event(type_=EVENT_LOG)
-        log = u'开仓'
+        log = u'开仓[%s]'%symbol
         event.dict_['log'] = log
         self.ee.put(event)
         self.__retry = 0
@@ -203,14 +215,14 @@ class MainEngine:
         self.__orders[_ref] = (symbol,exchangeid,price,pricetype,volume,direction,offset)
     def closePosition(self,symbol,tr,volume):
         event = Event(type_=EVENT_LOG)
-        log = u'平仓'
+        log = u'平仓[%s]'%symbol
         event.dict_['log'] = log
         self.ee.put(event)
         self.__retry = 0
         self.countGet = -5
         offset = defineDict['THOST_FTDC_OF_Close']
         pricetype = defineDict['THOST_FTDC_OPT_LimitPrice']
-        if tr<0:
+        if tr>0:
             price = self.price[symbol]['ask']+self.dictInstrument[symbol]['PriceTick']*2.0
             direction = defineDict["THOST_FTDC_D_Buy"]
         else:   
@@ -222,14 +234,14 @@ class MainEngine:
         self.__orders[_ref] = (symbol,exchangeid,price,pricetype,volume,direction,offset)
     def closeTodayPosition(self,symbol,tr,volume):
         event = Event(type_=EVENT_LOG)
-        log = u'平今仓'
+        log = u'平今仓[%s]'%symbol
         event.dict_['log'] = log
         self.ee.put(event)
         self.__retry = 0
         self.countGet = -5
         offset = defineDict['THOST_FTDC_OF_CloseToday']
         pricetype = defineDict['THOST_FTDC_OPT_LimitPrice']
-        if tr<0:
+        if tr>0:
             price = self.price[symbol]['ask']+self.dictInstrument[symbol]['PriceTick']*2.0
             direction = defineDict["THOST_FTDC_D_Buy"]
         else:   
@@ -257,6 +269,13 @@ class MainEngine:
         _exchange =  self.dictInstrument[_symbol]["ExchangeID"]
         _price = (_ask+_bid)/2.0
         self.price[_symbol] = {"ask":_ask,"price":_price,"bid":_bid}
+        if _symbol not in self.subInstrument:
+            event = Event(type_=EVENT_LOG)
+            log = u'非订阅合约[%s]'%_symbol
+            print(self.subInstrument)
+            event.dict_['log'] = log
+            self.ee.put(event)
+            return #   非订阅合约
         if self.socket:
             if self.justCopySignal:
                 self.socket.send(bytes(json.dumps({"act":"getresult"})))
@@ -276,8 +295,8 @@ class MainEngine:
         if self.__orders:
             print(self.__orders)
         elif self.havedposi:
-            _long = defineDict["THOST_FTDC_PD_Long"]
-            _short = defineDict["THOST_FTDC_PD_Short"]
+            _long = (_symbol,defineDict["THOST_FTDC_PD_Long"])
+            _short = (_symbol,defineDict["THOST_FTDC_PD_Short"])
             if self.todo==0:
                 if self.position.get(_long,0)>0:
                     self.closePosition(_symbol,1,self.position[_long])
@@ -376,7 +395,7 @@ class MainEngine:
                 self.subscribe(_minID,exch_id)
                 self.symbol = str(_minID)
                 self.exchangeid = str(exch_id)
-                self.subInstrument.add(inst_id)
+                self.subInstrument.add(_minID)
                 event = Event(type_=EVENT_LOG)
                 log = u'订阅(主力)合约: %s'%_minID
                 event.dict_['log'] = log

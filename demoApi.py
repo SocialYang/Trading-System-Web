@@ -300,6 +300,7 @@ class DemoTdApi(TdApi):
             self.__orderref = int(data['MaxOrderRef'])
             self.__frontid = data['FrontID']
             self.__sessionid = data['SessionID']
+            print(data)
         else:
             log = u'登陆回报，错误代码：' + unicode(error['ErrorID']) + u',' + u'错误信息：' + error['ErrorMsg'].decode('gbk')
         

@@ -1,0 +1,10 @@
+# Compiled source
+*.pyc
+
+
+# Logs and databases
+*.log
+*.con
+*.dat
+*.dir
+*.bak
