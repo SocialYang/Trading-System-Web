@@ -70,7 +70,7 @@ class MainEngine:
         self.lastGet = 'Account'        # 上次查询的性质
         self.ee.register(EVENT_TDLOGIN, self.initGet)  # 登录成功后开始初始化查询
 
-        self.__timer = time()+10
+        self.__timer = time()+3
         
         # 合约储存相关
         self.dictInstrument = {}        # 字典（保存合约查询数据）
@@ -92,6 +92,9 @@ class MainEngine:
         self.ee.register(EVENT_TICK,        self.get_tick)
         self.ee.register(EVENT_POSITION,    self.get_position)
 
+        self.ee.register(EVENT_TICK,        self.check_timer)
+        self.ee.register(EVENT_ORDER,       self.check_timer)
+
         import eventType
         for k,v in eventType.__dict__.items():
             if 'EVENT_' in k and v[0]!='_':
@@ -100,7 +103,7 @@ class MainEngine:
         self.md = DemoMdApi(self.ee, self.mdaddress, self.userid, self.password, self.brokerid,plus_path=_plus_path)    # 创建API接口
         self.td = DemoTdApi(self.ee, self.tdaddress, self.userid, self.password, self.brokerid,plus_path=_plus_path)
 
-    def check_timer(self):
+    def check_timer(self,event):
         if time()>=self.__timer:
             self.__timer = time()+1
             event = Event(type_=EVENT_TIMER)
@@ -122,7 +125,6 @@ class MainEngine:
         print(event.dict_['ErrorID'])
         self.lastError = event.dict_['ErrorID']
     def get_order(self,event):
-        self.check_timer()
         _data = event.dict_['data']
         if _data['OrderStatus'] == '5':
             self.__retry += 1
@@ -187,7 +189,6 @@ class MainEngine:
                 return 0
             self.__retry = 0
     def get_trade(self,event):
-        self.check_timer()
         _data = event.dict_['data']
     def get_position(self,event):
         _data = event.dict_['data']
@@ -332,7 +333,6 @@ class MainEngine:
         else:
             print("no zmq")
     def get_tick(self,event):
-        self.check_timer()
         _data = event.dict_['data']
         _ask = _data['AskPrice1']
         _bid = _data['BidPrice1']
