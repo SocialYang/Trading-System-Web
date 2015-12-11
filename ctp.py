@@ -20,7 +20,7 @@ def change_color(id):
 def add_log(content):
     _doc = document['log']
     _id = "log{}".format(time.time())
-    _content = html.LABEL(str(datetime.datetime.now())[11:19]+" "+content)
+    _content = html.LABEL(str(datetime.datetime.now())[11:22]+" "+content)
     some = html.DIV(_content,id=_id)
     some.style={"text-align":"left"}
     _l = _doc.children
@@ -207,7 +207,7 @@ funcs={
             EVENT_ORDER:event_order,
             EVENT_TRADE:event_trade,
             EVENT_ACCOUNT:event_account,
-            EVENT_POSITION:event_position,
+            EVENT_POSIALL:event_position,
             EVENT_PRODUCT:event_product,
     }
 
@@ -215,6 +215,8 @@ def ws_msg(ev):
     _msg = json.loads(ev.data)
     _type = _msg.get('_type_','EmptyType')
     if _type in funcs:
+        if _type == EVENT_POSITION:
+            add_log(ev.data)
         funcs[_type](_msg)
     else:
         add_log(ev.data)
@@ -257,7 +259,7 @@ def step_three():
 
 def reconnect():
     add_log("重连ing")
-    window.location.reload()
+#    window.location.reload()
 
 def ws_open():
     add_log("连接服务器端")

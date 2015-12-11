@@ -11,12 +11,13 @@ EVENT_TICK_JUST = 'eTick.'                        # 行情推送事件
 EVENT_TRADE = 'eTrade'                      # 成交推送事件
 EVENT_TRADE_JUST = 'eTrade.'                      # 成交推送事件
 
-EVENT_ERROR = 'eError'                      # Error推送事件
+EVENT_ERROR = '_eError'                      # Error推送事件
 
 EVENT_ORDER = 'eOrder'                      # 报单推送事件
 EVENT_ORDER_JUST = 'eOrder.'                      # 报单推送事件
 
-EVENT_POSITION = 'ePosition'                # 持仓查询回报事件
+EVENT_POSITION = '_ePosition'                # 持仓查询回报事件
+EVENT_POSIALL = 'ePosiAll'                # 持仓汇总
 
 EVENT_INSTRUMENT = '_eInstrument'            # 合约查询回报事件
 EVENT_PRODUCT = 'eProduct'                      # 合约品类更新

@@ -97,27 +97,6 @@ class EventEngine:
             #若存在，则按顺序将事件传递给处理函数执行
             [handler(event) for handler in self.__handlers[event.type_]]
 
-            if event.repeat>0:
-                th_fork(self.repeatEvent,(event,))
-
-            #以上语句为Python列表解析方式的写法，对应的常规循环写法为：
-            #for handler in self.__handlers[event.type_]:
-                #handler(event)    
-               
-    #----------------------------------------------------------------------
-    def repeatEvent(self,event):
-        sleep(event.repeat)
-        self.put(event)
-
-    def addEventTimer(self):
-        """向事件队列中存入计时器事件"""
-        # 创建计时器事件
-        event = Event(type_=EVENT_TIMER)
-        event.repeat = 1
-        # 向队列中存入计时器事件
-        self.put(event)    
-
-    #----------------------------------------------------------------------
     def start(self):
         """引擎启动"""
         # 将引擎设为启动

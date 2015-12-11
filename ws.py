@@ -27,7 +27,7 @@ def ws_ctpaccount(data):
     for k,v in account.items():
         if k not in me:
             _plus = make_plus(v['userid'])
-            if 1:
+            if 1>0:
                 me[k] = MainEngine(cs,v,_plus,useZmq = True)
             else:
                 me[k] = MainEngine(cs,v,_plus,useZmq = False)
