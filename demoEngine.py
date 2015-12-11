@@ -218,21 +218,21 @@ class MainEngine:
 
             _out = {}
             for k,v in self.position.items():
-                _out[k[:2]] = {}
-                _out[k[:2]]['YdPosition'] = v
-                _out[k[:2]]['InstrumentID'] = k[0]
-                _out[k[:2]]['PosiDirection'] = k[1]
+                _out[k] = {}
+                _out[k]['YdPosition'] = v
+                _out[k]['InstrumentID'] = k[0]
+                _out[k]['PosiDirection'] = k[1]
             for k,v in self.todayposition.items():
-                if k[:2] in _out:
-                    _out[k[:2]]['TodayPosition'] = v
-                    _out[k[:2]]['Position'] = v+_out[k[:2]]['YdPosition']
+                if k in _out:
+                    _out[k]['TodayPosition'] = v
+                    _out[k]['Position'] = v + _out[k[:2]]['YdPosition']
                 else:
-                    _out[k[:2]] = {}
-                    _out[k[:2]]['InstrumentID'] = k[0]
-                    _out[k[:2]]['PosiDirection'] = k[1]
-                    _out[k[:2]]['YdPosition'] = 0
-                    _out[k[:2]]['TodayPosition'] = v
-                    _out[k[:2]]['Position'] = v
+                    _out[k] = {}
+                    _out[k]['InstrumentID'] = k[0]
+                    _out[k]['PosiDirection'] = k[1]
+                    _out[k]['YdPosition'] = 0
+                    _out[k]['TodayPosition'] = v
+                    _out[k]['Position'] = v
 
             for k,v in _out.items():
                 event = Event(type_=EVENT_POSIALL)
