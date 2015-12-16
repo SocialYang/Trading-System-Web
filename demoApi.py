@@ -173,6 +173,7 @@ class DemoMdApi(MdApi):
         # 常规行情事件
         event1 = Event(type_=EVENT_TICK)
         event1.dict_['data'] = data
+        event1.symbol = data['InstrumentID']
         self.__eventEngine.put(event1)
         
     #----------------------------------------------------------------------
@@ -793,7 +794,9 @@ class DemoTdApi(TdApi):
         
         # 常规报单事件
         event1 = Event(type_=EVENT_ORDER)
-        event1.dict_['data'] = utf_dict(data)
+        _data = utf_dict(data)
+        event1.dict_['data'] = _data
+        event1.symbol = _data['InstrumentID']
         self.__eventEngine.put(event1)
 
     #----------------------------------------------------------------------
@@ -801,7 +804,9 @@ class DemoTdApi(TdApi):
         """成交回报"""
         # 常规成交事件
         event1 = Event(type_=EVENT_TRADE)
-        event1.dict_['data'] = utf_dict(data)
+        _data = utf_dict(data)
+        event1.dict_['data'] = _data
+        event1.symbol = _data['InstrumentID']
         self.__eventEngine.put(event1)
         
     #----------------------------------------------------------------------
@@ -913,7 +918,9 @@ class DemoTdApi(TdApi):
         """持仓查询回报"""
         if error['ErrorID'] == 0:
             event = Event(type_=EVENT_POSITION)
-            event.dict_['data'] = utf_dict(data)
+            _data = utf_dict(data)
+            event.dict_['data'] = _data
+            event.symbol = _data['InstrumentID']
             self.__eventEngine.put(event)
             
         else:

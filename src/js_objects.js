@@ -139,10 +139,12 @@ var pyobj2jsobj=$B.pyobj2jsobj=function(pyobj){
             try{
                 var args = []
                 for(var i=0;i<arguments.length;i++){
-                    args.push(jsobj2pyobj(arguments[i]))
+                    if(arguments[i]===undefined){args.push(_b_.None)}
+                    else{args.push(jsobj2pyobj(arguments[i]))}
                 }
                 return pyobj.apply(null, args)
             }catch(err){
+                console.log(err)
                 console.log(_b_.getattr(err,'info'))
                 console.log(err.__name__+':', err.args[0])
                 throw err
@@ -165,6 +167,12 @@ var $JSObjectDict = {
 
 $JSObjectDict.__bool__ = function(self){
     return (new Boolean(self.js)).valueOf()
+}
+
+$JSObjectDict.__delattr__ = function(self, attr){
+    _b_.getattr(self, attr) // raises AttributeError if necessary
+    delete self.js[attr]
+    return _b_.None
 }
 
 $JSObjectDict.__dir__ = function(self){
@@ -210,10 +218,7 @@ $JSObjectDict.__getattribute__ = function(self,attr){
                     location.replace(args[0])
                     return
                 }
-                var result = js_attr.apply(self.js,args)
-                if(typeof result == 'object') return JSObject(result)
-                if(result===undefined) return None
-                return $B.$JS2Py(result)
+                return $B.$JS2Py(js_attr.apply(self.js,args))
             }
             res.__repr__ = function(){return '<function '+attr+'>'}
             res.__str__ = function(){return '<function '+attr+'>'}
@@ -272,13 +277,31 @@ $JSObjectDict.__getitem__ = function(self,rank){
 
 var $JSObject_iterator = $B.$iterator_class('JS object iterator')
 $JSObjectDict.__iter__ = function(self){
+    var items = []
     if(window.Symbol && self.js[Symbol.iterator]!==undefined){
         // Javascript objects that support the iterable protocol, such as Map
-        var items = []
-        for(var item in self.js){ if( self.js.hasOwnProperty( item ) ) { items.push(jsobj2pyobj(item))} }
+        // For the moment don't use "for(var item of self.js)" for 
+        // compatibility with uglifyjs
+        // If object has length and item(), it's a collection : iterate on 
+        // its items
+        if(self.js.length!==undefined && self.js.item!==undefined){
+            for(var i=0; i<self.js.length ; i++){items.push(self.js[i])}
+        }else{
+            for(var item in self.js){ 
+                if( self.js.hasOwnProperty( item ) ) {
+                    items.push(jsobj2pyobj(item))
+                } 
+            }
+        }
+        return $B.$iterator(items, $JSObject_iterator)
+    }else if(self.js.length!==undefined && self.js.item !== undefined){
+        // collection
+        for(var i=0; i<self.js.length ; i++){items.push(self.js[i])}
         return $B.$iterator(items, $JSObject_iterator)
     }
-    return $B.$iterator(self.js,$JSObject_iterator)
+    // Else iterate on the dictionary built from the JS object
+    var _dict = $JSObjectDict.to_dict(self)
+    return _b_.dict.$dict.__iter__(_dict)
 }
 
 $JSObjectDict.__len__ = function(self){
@@ -300,14 +323,18 @@ $JSObjectDict.__setattr__ = function(self,attr,value){
             self.js[attr] = function(){
                 var args = []
                 for(var i=0, len=arguments.length;i<len;i++){
-                    args.push(jsobj2pyobj(arguments[i]))
+                    args.push($B.$JS2Py(arguments[i]))
                 }
                 try{return value.apply(null, args)}
                 catch(err){
                     err = $B.exception(err)
                     var info = _b_.getattr(err,'info')
-                    throw Error(info+'\n'+err.__class__.__name__+
-                        ': '+_b_.repr(err.args[0]))
+                    err.toString = function(){
+                        return info+'\n'+err.__class__.__name__+
+                        ': '+_b_.repr(err.args[0])
+                    }
+                    console.log(err+'')
+                    throw err
                 }
             }
         }
@@ -344,12 +371,8 @@ function JSObject(obj){
     // a function defined in Javascript. It must be wrapped in a JSObject
     // so that when called, the arguments are transformed into JS values
     if(typeof obj=='function'){return {__class__:$JSObjectDict,js:obj}}
+
     var klass = $B.get_class(obj)
-    if(klass===_b_.list.$dict){
-        // JS arrays not created by list() must be wrapped
-        if(obj.__brython__) return obj
-        return {__class__:$JSObjectDict,js:obj}
-    }
     // we need to do this or nan is returned, when doing json.loads(...)
     if (klass === _b_.float.$dict) return _b_.float(obj)
 
