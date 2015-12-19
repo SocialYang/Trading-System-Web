@@ -13,6 +13,9 @@ import shelve
 import json
 import zmq
 
+_YDPOSITIONDATE_ = '2'
+_TODAYPOSITIONDATE_ = '1'
+
 #from PyQt4 import QtCore
 
 from demoApi import *
@@ -145,7 +148,7 @@ class SymbolOrdersManager:
         self.__price = {"ask":_ask,"bid":_bid,"price":(_ask+_bid)/2.0}
         with self.__lock:
             if self.me.socket:
-                self.me.socket.send(bytes(json.dumps({"data":self.__price['price'],"symbol":self.symbol})))
+                self.me.socket.send(bytes(json.dumps({"data":self.__price['price'],"symbol":self.symbol,"act":"result"})))
                 if self.symbol not in self.me.subInstrument:
                     return  #   非订阅合约
             else:
@@ -162,48 +165,48 @@ class SymbolOrdersManager:
                 print(self.symbol,self.__status,"BEFORE",self.__hold)
 
                 def do_it(_todo,_pass,_reverse,d_pass,d_reverse):
-                    if self.__status.get(_reverse,{}).get("2",0)>0:
-                        self.closePosition(d_reverse,self.__status[_reverse]['2'])
-                    if self.__status.get(_reverse,{}).get("1",0)>0:
-                        self.closeTodayPosition(d_reverse,self.__status[_reverse]['1'])
+                    if self.__status.get(_reverse,{}).get(_YDPOSITIONDATE_,0)>0:
+                        self.closePosition(d_reverse,self.__status[_reverse][_YDPOSITIONDATE_])
+                    if self.__status.get(_reverse,{}).get(_TODAYPOSITIONDATE_,0)>0:
+                        self.closeTodayPosition(d_reverse,self.__status[_reverse][_TODAYPOSITIONDATE_])
 
                     self.__status[_reverse] = {}
 
                     _old = self.__status.get(_pass,{})
-                    _old_old = _old.get('2',0)
-                    _old_today = _old.get('1',0)
+                    _old_old = _old.get(_YDPOSITIONDATE_,0)
+                    _old_today = _old.get(_TODAYPOSITIONDATE_,0)
                     _haved = sum(_old.values())
 
                     if _todo>_haved:
                         self.openPosition(d_pass,_todo-_haved)
-                        _old['1'] = _old_today+(_todo-_haved)
+                        _old[_TODAYPOSITIONDATE_] = _old_today+(_todo-_haved)
                     elif _todo<_haved:
                         if _todo-_haved > _old_old:
                             # 昨仓全平 今仓平一部分
                             self.closePosition(_pass,_old_old)
-                            _old['2'] = 0
+                            _old[_YDPOSITIONDATE_] = 0
                             self.closeTodayPosition(_pass,_todo-_haved-_old_old)
-                            _old['1'] = _old_today - (_todo-_haved-_old_old)
+                            _old[_TODAYPOSITIONDATE_] = _old_today - (_todo-_haved-_old_old)
                         elif _todo-_haved == _old_old:
                             # 昨仓全平
                             self.closePosition(_pass,_old_old)
-                            _old['2'] = 0
+                            _old[_YDPOSITIONDATE_] = 0
                         else:
                             # 昨仓平一部分
                             self.closePosition(_pass,_todo-_haved)
-                            _old['2'] = _old_old - (_todo-_haved)
+                            _old[_YDPOSITIONDATE_] = _old_old - (_todo-_haved)
 
                     self.__status[_pass] = _old
 
                 if self.__hold==0:
-                    if long_st.get("2",0)>0:
-                        self.closePosition(1,long_st['2'])
-                    if long_st.get("1",0)>0:
-                        self.closeTodayPosition(1,long_st['1'])
-                    if short_st.get("2",0)>0:
-                        self.closePosition(-1,short_st['2'])
-                    if short_st.get("1",0)>0:
-                        self.closeTodayPosition(-1,short_st['1'])
+                    if long_st.get(_YDPOSITIONDATE_,0)>0:
+                        self.closePosition(1,long_st[_YDPOSITIONDATE_])
+                    if long_st.get(_TODAYPOSITIONDATE_,0)>0:
+                        self.closeTodayPosition(1,long_st[_TODAYPOSITIONDATE_])
+                    if short_st.get(_YDPOSITIONDATE_,0)>0:
+                        self.closePosition(-1,short_st[_YDPOSITIONDATE_])
+                    if short_st.get(_TODAYPOSITIONDATE_,0)>0:
+                        self.closeTodayPosition(-1,short_st[_TODAYPOSITIONDATE_])
                     self.__status = {}
                 elif self.__hold>0:
                     _todo = abs(self.__hold)
@@ -235,8 +238,8 @@ class SymbolOrdersManager:
                     _dict = {}
                     _dict['InstrumentID'] = self.symbol
                     _dict['PosiDirection'] = k
-                    _dict['TodayPosition'] = v.get("1",0)
-                    _dict['YdPosition'] = v.get("2",0)
+                    _dict['TodayPosition'] = v.get(_TODAYPOSITIONDATE_,0)
+                    _dict['YdPosition'] = v.get(_YDPOSITIONDATE_,0)
                     _dict['Position'] = _dict['TodayPosition']+_dict['YdPosition']
                     event = Event(type_=EVENT_POSIALL)
                     event.dict_['data'] = _dict
