@@ -25,3 +25,7 @@ EVENT_INSTRUMENT_DETAIL = 'eInstrumentDetail'  # 合约查询
 EVENT_INVESTOR = 'eInvestor'                # 投资者查询回报事件
 EVENT_ACCOUNT = 'eAccount'                  # 账户查询回报事件
 
+EVENT_CTPALL = 'eCtpAll'
+EVENT_EMPTY = 'eNone'
+EVENT_CTPUPDATE = 'eCtpUpdate'
+

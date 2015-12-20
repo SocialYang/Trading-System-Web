@@ -257,25 +257,22 @@ class MainEngine:
     """主引擎，负责对API的调度"""
 
     #----------------------------------------------------------------------
-    def __init__(self, ws, account, _plus_path, useZmq = False, zmqServer = "tcp://localhost:9999"):
+    def __init__(self, account, _plus_path, bg):
 
         self.ee = EventEngine(account)         # 创建事件驱动引擎
-
+        self.bridge = bg
         self.userid = str(account['userid'])
         self.password = str(account['password'])
         self.brokerid = str(account['brokerid'])
         self.mdaddress = str(account['mdfront'])
         self.tdaddress = str(account['tdfront'])
-
+        self.instrument = account['instrument'] #   sub list str
         self.pluspath = _plus_path
-        self.symbol = None
-        self.socket = None
-        self.websocket = ws             # websocket list to send msg
 
-        if useZmq:
+        if int(account['usezmq'])>0:
             context = zmq.Context()
             socket = context.socket(zmq.REQ)
-            socket.connect(zmqServer)
+            socket.connect(str(account['zmqserver']))
             self.socket = socket
 
         self.ee.start()                 # 启动事件驱动引擎
@@ -319,21 +316,22 @@ class MainEngine:
             if 'EVENT_' in k and v[0]!='_':
                 self.ee.register(v,self.websocket_send)
 
-        self.md = DemoMdApi(self.ee, self.mdaddress, self.userid, self.password, self.brokerid,plus_path=_plus_path)    # 创建API接口
-        self.td = DemoTdApi(self.ee, self.tdaddress, self.userid, self.password, self.brokerid,plus_path=_plus_path)
+        self.md = DemoMdApi(self.ee, self.mdaddress, self.userid, self.password, self.brokerid, plus_path=_plus_path)    # 创建API接口
+        self.td = DemoTdApi(self.ee, self.tdaddress, self.userid, self.password, self.brokerid, plus_path=_plus_path)
 
     def get_som(self,event):
         try:
-            symbol = event.symbol
-            if symbol in self.som:
-                return self.som[symbol]
-            else:
-                one = SymbolOrdersManager(symbol,self.dictInstrument[symbol],self)
-                self.som[symbol] = one
-                return one
+            symbol = event.dict_['data']['InstrumentID']
+            if symbol:
+                if symbol in self.som:
+                    return self.som[symbol]
+                else:
+                    one = SymbolOrdersManager(symbol,self.dictInstrument[symbol],self)
+                    self.som[symbol] = one
+                    return one
         except Exception,e:
-            print("demoEngine.py MainEngine get_som not found event.symbol")
-            print(event.dict_['data'])
+            print("demoEngine.py MainEngine get_som ERROR",e)
+            print(event.type_,event.dict_['data'])
 
     def check_timer(self,event):
         if time()>=self.__timer:
@@ -343,31 +341,23 @@ class MainEngine:
     def set_ws(self,ws):
         self.websocket = ws
     def websocket_send(self,event):
-        try:
-            _data = json.dumps(event.dict_,ensure_ascii=False)
-            for _ws in self.websocket:
-                try:
-                    _ws.send(_data)
-                except Exception,e:
-                    print(_data,e)
-        except Exception,e:
-            print(event.dict_,e)
+        self.bridge.send_ws(event)
     def get_error(self,event):
         print(event.dict_['log'])
         print(event.dict_['ErrorID'])
         self.lastError = event.dict_['ErrorID']
     def get_order(self,event):
         som = self.get_som(event)
-        som.onorder(event)
+        if som:som.onorder(event)
     def get_trade(self,event):
         som = self.get_som(event)
-        som.ontrade(event)
+        if som:som.ontrade(event)
     def get_position(self,event):
         som = self.get_som(event)
-        som.onposi(event)
+        if som:som.onposi(event)
     def get_tick(self,event):
         som = self.get_som(event)
-        som.ontick(event)
+        if som:som.ontick(event)
     def zmq_heart(self):
         if self.socket:
             self.socket.send(bytes(json.dumps({"act":"ping"})))
@@ -403,8 +393,8 @@ class MainEngine:
             log = u'订阅合约: %s'%inst_id
             event.dict_['log'] = log
             self.ee.put(event)
-        elif '_' in inst_id:
-            _productID,_str = inst_id.split('_')
+        elif '=' in inst_id:
+            _productID,_str = inst_id.split('=')
             _all = self.dictProduct.get(_productID,{})
             if _str == 'master' and _all:
                 _minDate = 100000000

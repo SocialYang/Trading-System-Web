@@ -37,12 +37,6 @@
                     document['console'].clear()
                     document['console'] <= "前置地址错误"
 
-            def save(ev):
-                address = document['zone'].value
-                document['console'].clear()
-                document['console'] <= "更新地址为: "+address
-                store['ctp_server'] = address
-
             def updatectp(ev):
                 _acc = json.loads(store['ctp_account'])
                 _one = _acc[ev.target.id]
