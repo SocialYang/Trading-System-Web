@@ -5,6 +5,3 @@
 # Logs and databases
 *.log
 *.con
-*.dat
-*.dir
-*.bak

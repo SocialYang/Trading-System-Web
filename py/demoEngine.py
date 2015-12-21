@@ -13,6 +13,9 @@ import shelve
 import json
 import zmq
 
+_YDPOSITIONDATE_ = '2'
+_TODAYPOSITIONDATE_ = '1'
+
 #from PyQt4 import QtCore
 
 from demoApi import *
@@ -23,6 +26,7 @@ class SymbolOrdersManager:
     def __init__(self,symbol,data,me):
         self.symbol = symbol
         self.data = data
+        self.exchange = data['ExchangeID']
         self.me = me
         self.__lock = Lock()
         self.__maxRetry = 5
@@ -32,8 +36,6 @@ class SymbolOrdersManager:
         self.__hold = 0
         self.__price = {}
         print("Symbol:",self.data)
-    def hold(self,vol):
-        self.__hold = vol
     def openPosition(self,tr,volume):
         event = Event(type_=EVENT_LOG)
         log = u'开仓[%s] %d %d'%(self.symbol,tr,volume)
@@ -145,7 +147,7 @@ class SymbolOrdersManager:
         self.__price = {"ask":_ask,"bid":_bid,"price":(_ask+_bid)/2.0}
         with self.__lock:
             if self.me.socket:
-                self.me.socket.send(bytes(json.dumps({"data":self.__price['price'],"symbol":self.symbol})))
+                self.me.socket.send(bytes(json.dumps({"data":self.__price['price'],"symbol":self.symbol,"act":"result"})))
                 if self.symbol not in self.me.subInstrument:
                     return  #   非订阅合约
             else:
@@ -162,48 +164,48 @@ class SymbolOrdersManager:
                 print(self.symbol,self.__status,"BEFORE",self.__hold)
 
                 def do_it(_todo,_pass,_reverse,d_pass,d_reverse):
-                    if self.__status.get(_reverse,{}).get("2",0)>0:
-                        self.closePosition(d_reverse,self.__status[_reverse]['2'])
-                    if self.__status.get(_reverse,{}).get("1",0)>0:
-                        self.closeTodayPosition(d_reverse,self.__status[_reverse]['1'])
+                    if self.__status.get(_reverse,{}).get(_YDPOSITIONDATE_,0)>0:
+                        self.closePosition(d_reverse,self.__status[_reverse][_YDPOSITIONDATE_])
+                    if self.__status.get(_reverse,{}).get(_TODAYPOSITIONDATE_,0)>0:
+                        self.closeTodayPosition(d_reverse,self.__status[_reverse][_TODAYPOSITIONDATE_])
 
                     self.__status[_reverse] = {}
 
                     _old = self.__status.get(_pass,{})
-                    _old_old = _old.get('2',0)
-                    _old_today = _old.get('1',0)
+                    _old_old = _old.get(_YDPOSITIONDATE_,0)
+                    _old_today = _old.get(_TODAYPOSITIONDATE_,0)
                     _haved = sum(_old.values())
 
                     if _todo>_haved:
                         self.openPosition(d_pass,_todo-_haved)
-                        _old['1'] = _old_today+(_todo-_haved)
+                        _old[_TODAYPOSITIONDATE_] = _old_today+(_todo-_haved)
                     elif _todo<_haved:
                         if _todo-_haved > _old_old:
                             # 昨仓全平 今仓平一部分
                             self.closePosition(_pass,_old_old)
-                            _old['2'] = 0
+                            _old[_YDPOSITIONDATE_] = 0
                             self.closeTodayPosition(_pass,_todo-_haved-_old_old)
-                            _old['1'] = _old_today - (_todo-_haved-_old_old)
+                            _old[_TODAYPOSITIONDATE_] = _old_today - (_todo-_haved-_old_old)
                         elif _todo-_haved == _old_old:
                             # 昨仓全平
                             self.closePosition(_pass,_old_old)
-                            _old['2'] = 0
+                            _old[_YDPOSITIONDATE_] = 0
                         else:
                             # 昨仓平一部分
                             self.closePosition(_pass,_todo-_haved)
-                            _old['2'] = _old_old - (_todo-_haved)
+                            _old[_YDPOSITIONDATE_] = _old_old - (_todo-_haved)
 
                     self.__status[_pass] = _old
 
                 if self.__hold==0:
-                    if long_st.get("2",0)>0:
-                        self.closePosition(1,long_st['2'])
-                    if long_st.get("1",0)>0:
-                        self.closeTodayPosition(1,long_st['1'])
-                    if short_st.get("2",0)>0:
-                        self.closePosition(-1,short_st['2'])
-                    if short_st.get("1",0)>0:
-                        self.closeTodayPosition(-1,short_st['1'])
+                    if long_st.get(_YDPOSITIONDATE_,0)>0:
+                        self.closePosition(1,long_st[_YDPOSITIONDATE_])
+                    if long_st.get(_TODAYPOSITIONDATE_,0)>0:
+                        self.closeTodayPosition(1,long_st[_TODAYPOSITIONDATE_])
+                    if short_st.get(_YDPOSITIONDATE_,0)>0:
+                        self.closePosition(-1,short_st[_YDPOSITIONDATE_])
+                    if short_st.get(_TODAYPOSITIONDATE_,0)>0:
+                        self.closeTodayPosition(-1,short_st[_TODAYPOSITIONDATE_])
                     self.__status = {}
                 elif self.__hold>0:
                     _todo = abs(self.__hold)
@@ -235,8 +237,8 @@ class SymbolOrdersManager:
                     _dict = {}
                     _dict['InstrumentID'] = self.symbol
                     _dict['PosiDirection'] = k
-                    _dict['TodayPosition'] = v.get("1",0)
-                    _dict['YdPosition'] = v.get("2",0)
+                    _dict['TodayPosition'] = v.get(_TODAYPOSITIONDATE_,0)
+                    _dict['YdPosition'] = v.get(_YDPOSITIONDATE_,0)
                     _dict['Position'] = _dict['TodayPosition']+_dict['YdPosition']
                     event = Event(type_=EVENT_POSIALL)
                     event.dict_['data'] = _dict
@@ -246,33 +248,38 @@ class SymbolOrdersManager:
             else:
                 self.__stlist.add((_dir,_date))
 
-    def get_price(self):
-        return self.__price
+        if (self.symbol,self.exchange) not in self.me.subedInstrument:
+            self.me.subscribe(self.symbol, self.exchange)
 
 ########################################################################
 class MainEngine:
     """主引擎，负责对API的调度"""
 
     #----------------------------------------------------------------------
-    def __init__(self, ws, account, _plus_path, useZmq = False, zmqServer = "tcp://localhost:9999"):
+    def __init__(self, account, _plus_path, bg):
 
         self.ee = EventEngine(account)         # 创建事件驱动引擎
-
+        self.bridge = bg
         self.userid = str(account['userid'])
         self.password = str(account['password'])
         self.brokerid = str(account['brokerid'])
         self.mdaddress = str(account['mdfront'])
         self.tdaddress = str(account['tdfront'])
-
+        self.instrument = account['instrument'] #   sub list str
         self.pluspath = _plus_path
-        self.symbol = None
-        self.socket = None
-        self.websocket = ws             # websocket list to send msg
 
-        if useZmq:
+        self.dictInstrument = {}        # 字典（保存合约查询数据）
+        self.dictProduct = {}        # 字典（保存合约查询数据）
+        self.dictExchange= {}
+        self.dictUpdate = None
+        self.subInstrument = set()
+        self.subedInstrument = set()
+        self.master = {}    #   记录主力合约对应关系
+        self.socket = None
+        if int(account['usezmq'])>0:
             context = zmq.Context()
             socket = context.socket(zmq.REQ)
-            socket.connect(zmqServer)
+            socket.connect(str(account['zmqserver']))
             self.socket = socket
 
         self.ee.start()                 # 启动事件驱动引擎
@@ -287,19 +294,14 @@ class MainEngine:
         self.ee.register(EVENT_TDLOGIN, self.initGet)  # 登录成功后开始初始化查询
 
         self.__timer = time()+3
+        self.__readySubscribe = {}
         
         # 合约储存相关
-        self.dictInstrument = {}        # 字典（保存合约查询数据）
-        self.dictProduct = {}        # 字典（保存合约查询数据）
-        self.dictExchange= {}
-        self.volInstrument = {}
-        self.subInstrument = set()
-        self.subedInst = set()
-        
-        self.price = {} #   存储报价，分品种
 
-        self.todo = 0
-
+        self.get_instrument()
+        self.get_subscribe(self.instrument)
+        self.ee.register(EVENT_MDLOGIN,     self.ready_subscribe)
+        self.ee.register(EVENT_TDLOGIN,     self.ready_subscribe)
         self.ee.register(EVENT_ERROR,       self.get_error)
         self.ee.register(EVENT_INSTRUMENT,  self.insertInstrument)
         self.ee.register(EVENT_TIMER,       self.getAccountPosition)
@@ -316,21 +318,58 @@ class MainEngine:
             if 'EVENT_' in k and v[0]!='_':
                 self.ee.register(v,self.websocket_send)
 
-        self.md = DemoMdApi(self.ee, self.mdaddress, self.userid, self.password, self.brokerid,plus_path=_plus_path)    # 创建API接口
-        self.td = DemoTdApi(self.ee, self.tdaddress, self.userid, self.password, self.brokerid,plus_path=_plus_path)
-
+        self.md = DemoMdApi(self, self.mdaddress, self.userid, self.password, self.brokerid, plus_path=_plus_path)    # 创建API接口
+        self.td = DemoTdApi(self, self.tdaddress, self.userid, self.password, self.brokerid, plus_path=_plus_path)
+    def get_subscribe(self,_inst):
+        _all = _inst.split('+')
+        _today = date.today()
+        _date = int("%d%d%d"%(_today.year,_today.month,_today.day))
+        for one in _all:
+            if '=' in one:
+                _productid = one[:-1]
+                if _productid in self.dictProduct:
+                    _product = self.dictProduct[_productid]
+                    _productlist = filter( lambda x:x[0]>_date , [ (v[-1],k) for k,v in _product.items()] )
+                    _productlist.sort()
+                    _instrumentid = _productlist[0][-1]
+                    _exchangeid = self.dictInstrument.get(_instrumentid,{}).get("ExchangeID",'')
+                    self.subInstrument.add((_instrumentid,_exchangeid))
+                    self.master[_instrumentid] = one
+            else:
+                _instrumentid = one
+                _exchangeid = self.dictInstrument.get(_instrumentid,{}).get("ExchangeID",'')
+                self.subInstrument.add((_instrumentid,_exchangeid))
+    def ready_subscribe(self,event):
+        self.__readySubscribe[event.type_] = 1
+        if len(self.__readySubscribe) == 2:
+            for one in self.subInstrument:
+                self.subscribe(one[0],one[1])
+    def get_instrument(self):
+        _dict = self.bridge.get_instrument()
+        self.dictInstrument = _dict.get('instrument',{})
+        self.dictExchange = _dict.get('exchange',{})
+        self.dictProduct = _dict.get('product',{})
+        self.dictUpdate = _dict.get('day',None)
+    def set_instrument(self):
+        _dict = {}
+        _dict['instrument'] = self.dictInstrument
+        _dict['exchange'] = self.dictExchange
+        _dict['product'] = self.dictProduct
+        _dict['day'] = date.today()
+        self.bridge.set_instrument(_dict)
     def get_som(self,event):
         try:
-            symbol = event.symbol
-            if symbol in self.som:
-                return self.som[symbol]
-            else:
-                one = SymbolOrdersManager(symbol,self.dictInstrument[symbol],self)
-                self.som[symbol] = one
-                return one
+            symbol = event.dict_['data']['InstrumentID']
+            if symbol:
+                if symbol in self.som:
+                    return self.som[symbol]
+                else:
+                    one = SymbolOrdersManager(symbol,self.dictInstrument[symbol],self)
+                    self.som[symbol] = one
+                    return one
         except Exception,e:
-            print("demoEngine.py MainEngine get_som not found event.symbol")
-            print(event.dict_['data'])
+            print("demoEngine.py MainEngine get_som ERROR",e)
+            print(event.type_,event.dict_['data'])
 
     def check_timer(self,event):
         if time()>=self.__timer:
@@ -340,31 +379,23 @@ class MainEngine:
     def set_ws(self,ws):
         self.websocket = ws
     def websocket_send(self,event):
-        try:
-            _data = json.dumps(event.dict_,ensure_ascii=False)
-            for _ws in self.websocket:
-                try:
-                    _ws.send(_data)
-                except Exception,e:
-                    print(_data,e)
-        except Exception,e:
-            print(event.dict_,e)
+        self.bridge.send_ws(event)
     def get_error(self,event):
         print(event.dict_['log'])
         print(event.dict_['ErrorID'])
         self.lastError = event.dict_['ErrorID']
     def get_order(self,event):
         som = self.get_som(event)
-        som.onorder(event)
+        if som:som.onorder(event)
     def get_trade(self,event):
         som = self.get_som(event)
-        som.ontrade(event)
+        if som:som.ontrade(event)
     def get_position(self,event):
         som = self.get_som(event)
-        som.onposi(event)
+        if som:som.onposi(event)
     def get_tick(self,event):
         som = self.get_som(event)
-        som.ontick(event)
+        if som:som.ontick(event)
     def zmq_heart(self):
         if self.socket:
             self.socket.send(bytes(json.dumps({"act":"ping"})))
@@ -385,43 +416,8 @@ class MainEngine:
     #----------------------------------------------------------------------
     def subscribe(self, instrumentid, exchangeid):
         """订阅合约"""
-        if instrumentid not in self.subedInst:
-            self.md.subscribe(str(instrumentid), str(exchangeid))
-            self.subedInst.add(instrumentid)
-
-    def sub_instrument(self,inst_id):
-        if inst_id in self.dictInstrument:
-            exch_id = self.dictInstrument[inst_id]['ExchangeID']
-            self.subscribe(inst_id,exch_id)
-            self.subInstrument.add(inst_id)
-            self.symbol = str(inst_id)
-            self.exchangeid = str(exch_id)
-            event = Event(type_=EVENT_LOG)
-            log = u'订阅合约: %s'%inst_id
-            event.dict_['log'] = log
-            self.ee.put(event)
-        elif '_' in inst_id:
-            _productID,_str = inst_id.split('_')
-            _all = self.dictProduct.get(_productID,{})
-            if _str == 'master' and _all:
-                _minDate = 100000000
-                _minID = ''
-                for k,v in _all.items():
-                    _id,_date = v
-                    if _date < _minDate:
-                        _minDate = _date
-                        _minID = k
-                exch_id = self.dictInstrument[_minID]['ExchangeID']
-                self.subscribe(_minID,exch_id)
-                self.symbol = str(_minID)
-                self.exchangeid = str(exch_id)
-                self.subInstrument.add(_minID)
-                event = Event(type_=EVENT_LOG)
-                log = u'订阅(主力)合约: %s'%_minID
-                event.dict_['log'] = log
-                self.ee.put(event)
-        self.saveInstrument()
-
+        self.md.subscribe(str(instrumentid), str(exchangeid))
+        self.subedInstrument.add((instrumentid, exchangeid))
     #----------------------------------------------------------------------
     def getAccount(self):
         """查询账户"""
@@ -467,11 +463,7 @@ class MainEngine:
     #----------------------------------------------------------------------
     def initGet(self, event):
         """在交易服务器登录成功后，开始初始化查询"""
-        # 打开设定文件setting.vn
         self.getInstrument()
-#        _exchangeid = self.dictInstrument[self.symbol]['ExchangeID']
-        for _inst in list(self.subInstrument):
-            self.sub_instrument(_inst)
     #----------------------------------------------------------------------
     def getInstrument(self):
         """获取合约"""
@@ -480,15 +472,8 @@ class MainEngine:
         log = u'获取合约...'
         event.dict_['log'] = log
         self.ee.put(event)
-        f = shelve.open(self.pluspath+'instrument')
-        if f.get('date','')==date.today() and f.get('instrument',{}) and f.get('product',{}) and f.get('exchange',{}):
-            self.dictProduct = f['product']
-            self.dictInstrument = f['instrument']
-            self.dictExchange = f['exchange']
-            self.volInstrument = f.get('volinstrument',{})
-            self.subInstrument = f.get('subinstrument',set())
 
-            self.product_print()
+        if self.dictUpdate==date.today():
 
             event = Event(type_=EVENT_PRODUCT)
             event.dict_['data'] = self.dictProduct
@@ -498,6 +483,7 @@ class MainEngine:
             log = u'得到本地合约!'
             event.dict_['log'] = log
             self.ee.put(event)
+
             self.getPosition()
         else:
             event = Event(type_=EVENT_LOG)
@@ -505,7 +491,6 @@ class MainEngine:
             event.dict_['log'] = log
             self.ee.put(event)
             self.td.getInstrument()
-        f.close()
     def product_print(self):
         print("self.dictExchange ",self.dictExchange.keys())
         return(0)
@@ -534,12 +519,11 @@ class MainEngine:
         # 合约对象查询完成后，查询投资者信息并开始循环查询
         if last:
             # 将查询完成的合约信息保存到本地文件，今日登录可直接使用不再查询
-            self.saveInstrument()
-
-            self.product_print()
+            self.dictUpdate = date.today()
+            self.set_instrument()
 
             event = Event(type_=EVENT_LOG)
-            log = u'合约信息查询完成!'
+            log = u'合约查询完成!'
             event.dict_['log'] = log
             self.ee.put(event)            
 
@@ -572,14 +556,3 @@ class MainEngine:
 
     def __del__(self):
         self.exit()
-    #----------------------------------------------------------------------
-    def saveInstrument(self):
-        """保存合约属性数据"""
-        f = shelve.open(self.pluspath+'instrument')
-        f['instrument'] = self.dictInstrument
-        f['product'] = self.dictProduct
-        f['exchange'] = self.dictExchange
-        f['volinstrument'] = self.volInstrument
-        f['subinstrument'] = self.subInstrument
-        f['date'] = date.today()
-        f.close()

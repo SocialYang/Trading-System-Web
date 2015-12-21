@@ -41,14 +41,15 @@ class DemoMdApi(MdApi):
     """
 
     #----------------------------------------------------------------------
-    def __init__(self, eventEngine, address, userid, password, brokerid, plus_path=""):
+    def __init__(self, me, address, userid, password, brokerid, plus_path=""):
         """
         API对象的初始化函数
         """
         super(DemoMdApi, self).__init__()
         
         # 事件引擎，所有数据都推送到其中，再由事件引擎进行分发
-        self.__eventEngine = eventEngine  
+        self.__me = me
+        self.__eventEngine = me.ee
         
         # 请求编号，由api负责管理
         self.__reqid = 0
@@ -136,10 +137,11 @@ class DemoMdApi(MdApi):
         event.dict_['log'] = log
         self.__eventEngine.put(event)
         
+        event1 = Event(type_=EVENT_MDLOGIN)
+        self.__eventEngine.put(event1)
         ## 重连后自动订阅之前已经订阅过的合约
-        if self.__setSubscribed:
-            for instrument in self.__setSubscribed:
-                self.subscribe(instrument[0], instrument[1])
+        for instrument in self.__setSubscribed:
+            self.subscribe(instrument[0], instrument[1])
                 
     #---------------------------------------------------------------------- 
     def onRspUserLogout(self, data, error, n, last):
@@ -194,10 +196,9 @@ class DemoMdApi(MdApi):
     #----------------------------------------------------------------------
     def subscribe(self, instrumentid, exchangeid):
         """订阅合约"""
-        self.subscribeMarketData(instrumentid)
-        
         instrument = (instrumentid, exchangeid)
         self.__setSubscribed.add(instrument)
+        self.subscribeMarketData(instrumentid)
 
 
 ########################################################################
@@ -215,12 +216,13 @@ class DemoTdApi(TdApi):
     """
 
     #----------------------------------------------------------------------
-    def __init__(self, eventEngine, address, userid, password, brokerid, plus_path=""):
+    def __init__(self, me, address, userid, password, brokerid, plus_path=""):
         """API对象的初始化函数"""
         super(DemoTdApi, self).__init__()
         
         # 事件引擎，所有数据都推送到其中，再由事件引擎进行分发
-        self.__eventEngine = eventEngine
+        self.__me = me
+        self.__eventEngine = me.ee
         
         # 请求编号，由api负责管理
         self.__reqid = 0

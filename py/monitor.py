@@ -1,21 +1,19 @@
+import sys
+import time
+import json
+import datetime
 from browser import document, alert, html, websocket, timer, window
 from browser.local_storage import storage
-import json,time,datetime
-from browser.timer import request_animation_frame as raf
+sys.path.append("../py")
 from eventType import *
 
-_TARGET_COLOR = 240 # 150
-_background={}
 count = 100
+cache = {}
 
 def width_label(c,width):
     s= html.LABEL(c)
     s.style={"display":"inline-block","width":"%dpx"%width}
     return s
-
-def change_color(id):
-    global _background
-    _background[id] = _TARGET_COLOR #240 is close, 150 is open
 
 def add_log(content):
     _doc = document['log']
@@ -28,24 +26,20 @@ def add_log(content):
     _l=[some]+_l
     for one in _l[:count]:
         _doc<=one
-    change_color(_id)
 
-if 'ctp_server' in storage:
-    add_log("服务器地址:"+storage['ctp_server'])
-    address = 'ws://'+storage['ctp_server']+":9789/websocket"
+add_log("界面启动")
+
+if 'ws_server' in storage and storage['ws_server'] in document['websocket_ip'].value:
+    ip = storage['ws_server']
+    add_log('连接至预存的'+storage['ws_server'])
 else:
-    add_log("服务器地址:本地")
-    address = 'ws://localhost:9789/websocket'
+    ips = document['websocket_ip'].value.split('|')
+    cache['ips'] = ips
+    cache['ips_pos'] = 0
+    ip = ips[0]
 
-class AccManager:
-    def __init__(self):
-        add_log("账户管理器启动")
-    def __del__(self):
-        add_log("账户管理器退出")
-
-
+address = 'ws://'+ip+":9789/websocket"
 ws = websocket.WebSocket(address)
-idTimer = 1
 
 def event_log(_msg):
     add_log('['+_msg['_account_']+'] '+_msg['log'])
@@ -55,7 +49,6 @@ def event_product(_msg):
     _dict = _msg['data']
     storage['product_list'] = json.dumps(_dict.keys())
     add_log(str(_dict))
-    ws.send("ws_getinstrument=IF_master")
 
 DirectionDict = {"0":"买","1":"卖"}
 DirectionStyle = {"0":{"color":"red"},"1":{"color":"green"},"2":{"color":"red"},"3":{"color":"green"}}
@@ -79,7 +72,6 @@ def event_order(_msg):
     _doc.clear()
     for one in Orders:
         _doc <= one
-        change_color(_id)
 
 Trades = []
 def event_trade(_msg):
@@ -99,7 +91,6 @@ def event_trade(_msg):
     _doc.clear()
     for one in Trades:
         _doc <= one
-    change_color(_id)
 
 Ticks = []
 def event_tick(_msg):
@@ -132,7 +123,6 @@ def event_tick(_msg):
     _doc.clear()
     for one in Ticks:
         _doc <= one
-    change_color(_id)
 
 PosAccount = set()
 PosInst = set()
@@ -172,7 +162,6 @@ def event_position(_msg):
                 _pid = "position_{}_{}_{}".format(pac,pinst,pdir)
                 if _pid in PosDict:
                     _doc <= PosDict[_pid]
-    change_color(_id)
 
 Accounts = set()
 AccDict = {}
@@ -199,9 +188,15 @@ def event_account(_msg):
     _doc.clear()
     for one in Accounts:
         _doc <= AccDict[one]
-    change_color(_id)
 
-funcs={
+def event_skip(_msg):pass
+
+def empty_func(_msg):
+    add_log(str(_msg))
+
+funcs = {
+            EVENT_EMPTY:empty_func,
+            EVENT_CTPUPDATE:event_skip,
             EVENT_LOG:event_log,
             EVENT_TICK:event_tick,
             EVENT_ORDER:event_order,
@@ -213,60 +208,32 @@ funcs={
 
 def ws_msg(ev):
     _msg = json.loads(ev.data)
-    _type = _msg.get('_type_','EmptyType')
+    _type = _msg.get('_type_',EVENT_EMPTY)
     if _type in funcs:
-        if _type == EVENT_POSITION:
-            add_log(ev.data)
         funcs[_type](_msg)
     else:
-        add_log(ev.data)
-
-rafId = 0
-def loop():
-    global rafId,_background
-    if _background:
-        _all = _background.items()
-        _background = {}
-        for k,v in _all:
-            if v<240:
-                document[k].set_style({"background":"#{:x}{:x}{:x}".format(v,v,v)})
-                _background[k] = v+1
-                #rafId = raf(loop)
-
-def step_one():
-    if 'ctp_account' in storage:
-        _acc = json.loads(storage['ctp_account'])
-        if _acc:
-            ws.send("ws_ctpaccount="+storage['ctp_account'])
-            timer.set_timeout(step_two, 1000)
-        else:
-            add_log(html.A("请先设置ctp信息",href="settings.html"))
-    else:
-        add_log(html.A("请先设置ctp信息",href="settings.html"))
-
-def step_two():
-    add_log("确认帐户信息")
-    document['marketdata'].clear()
-    document['account'].clear()
-    document['position'].clear()
-    document['trade'].clear()
-    document['order'].clear()
-    timer.set_timeout(step_three, 1000)
-
-def step_three():
-    add_log("启动循环消息")
-    timer.set_timeout(loop, 1000)
+        empty_func(_msg)
 
 def reconnect():
     add_log("重连ing")
 #    window.location.reload()
 
 def ws_open():
-    add_log("连接服务器端")
-    timer.set_timeout(step_one, 1000)
+    if 'ws_server' not in storage or storage['ws_server'] not in document['websocket_ip'].value:
+        storage['ws_server'] = cache['ips'][cache['ips_pos']]
+        add_log('连接至'+storage['ws_server']+'并存储该地址')
+#    timer.set_timeout(step_one, 1000)
 
 def ws_error():
     add_log("!!!websocket连接报错!!!")
+    if 'ws_server' not in storage or storage['ws_server'] not in document['websocket_ip'].value:
+        if cache['ips_pos']+1 <= len(cache['ips']):
+            global ws
+            cache['ips_pos'] = cache['ips_pos']+1
+            ip = cache['ips'][cache['ips_pos']]
+            address = 'ws://'+ip+":9789/websocket"
+            ws = websocket.WebSocket(address)
+
 
 def ws_disconnected():
     add_log("服务器端断开连接,3秒后尝试重连")
@@ -276,4 +243,3 @@ ws.bind('message',ws_msg)
 ws.bind('close',ws_disconnected)
 ws.bind('open',ws_open)
 ws.bind('error',ws_error)
-document['restart'].bind('click',show_storage)
