@@ -15,7 +15,11 @@ var $IntDict = {__class__:$B.$type,
     __name__:'int',
     __dir__:$ObjectDict.__dir__,
     toString:function(){return '$IntDict'},
-    $native:true
+    $native:true,
+    descriptors:{'numerator':true,
+                 'denominator':true,
+                 'imag':true,
+                 'real':true}
 }
 
 $IntDict.from_bytes = function() {
@@ -271,12 +275,18 @@ $IntDict.__pow__ = function(self,other){
           return int(self.valueOf())
       }
       var res = Math.pow(self.valueOf(),other.valueOf()) 
+      if(!isFinite(res)){return res}
       if(res>$B.min_int && res<$B.max_int){return res}
-      else{return int($B.LongInt.$dict.__pow__($B.LongInt(self),
-         $B.LongInt(other)))}
+      else{
+          return int($B.LongInt.$dict.__pow__($B.LongInt(self),
+             $B.LongInt(other)))}
     }
     if(isinstance(other, _b_.float)) { 
-      return new Number(Math.pow(self.valueOf(), other.valueOf()))
+        if(self>=0){return new Number(Math.pow(self, other.valueOf()))}
+        else{
+            // use complex power
+            return _b_.complex.$dict.__pow__(_b_.complex(self, 0), other)
+        }
     }
     if(hasattr(other,'__rpow__')) return getattr(other,'__rpow__')(self)
     $err("**",other)
@@ -339,8 +349,12 @@ $IntDict.bit_length = function(self){
     return s.length       // len('100101') --> 6
 }
 
+// descriptors
 $IntDict.numerator = function(self){return self}
 $IntDict.denominator = function(self){return int(1)}
+$IntDict.imag = function(self){return int(0)}
+$IntDict.real = function(self){return self}
+
 
 $B.max_int32= (1<<30) * 2 - 1
 $B.min_int32= - $B.max_int32

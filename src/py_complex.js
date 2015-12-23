@@ -11,7 +11,8 @@ function $UnsupportedOpType(op,class1,class2){
 var $ComplexDict = {__class__:$B.$type,
     __dir__:$ObjectDict.__dir__,
     __name__:'complex',
-    $native:true
+    $native:true,
+    descriptors:{real:true, imag:true}
 }
 
 $ComplexDict.__abs__ = function(self,other){return complex(abs(self.real),abs(self.imag))}
@@ -91,7 +92,18 @@ $ComplexDict.__new__ = function(cls){
 $ComplexDict.__pos__ = function(self){return self}
 
 $ComplexDict.__pow__ = function(self,other){
-    $UnsupportedOpType("**",complex,$B.get_class(other))
+    // complex power : use Moivre formula (cos(x) + i sin(x))**y = cos(xy)+i sin(xy)
+    var norm = Math.sqrt((self.real*self.real)+(self.imag*self.imag)),
+        sin = self.imag/norm,
+        cos = self.real/norm,
+        res = Math.pow(norm, other),
+        angle
+    
+    if(cos==0){angle = sin==1 ? Math.PI/2 : 3*Math.PI/2}
+    else if(sin==0){angle = cos==1 ? 0 : Math.PI}
+    else{angle = Math.atan(sin/cos)}
+    return complex(res*Math.cos(angle*other), res*Math.sin(angle*other))
+    
 }
 
 $ComplexDict.__str__ = $ComplexDict.__repr__ = function(self){
@@ -180,10 +192,12 @@ for(var $op in $B.$comps){
 $B.make_rmethods($ComplexDict)
 
 // Descriptors to return real and imag
-$ComplexDict.descriptors = {
-    'real': function(self){return new Number(self.real)},
-    'imag': function(self){return new Number(self.imag)}
-}
+//$ComplexDict.descriptors = {
+    //'real': function(self){return new Number(self.real)},
+    //'imag': function(self){return new Number(self.imag)}
+//}
+$ComplexDict.real = function(self){return new Number(self.real)}
+$ComplexDict.imag = function(self){return new Number(self.imag)}
 
 var complex_re = /^(\d*\.?\d*)([\+\-]?)(\d*\.?\d*)(j?)$/
 

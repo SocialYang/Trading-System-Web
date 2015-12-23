@@ -27,12 +27,10 @@ class EventEngine:
         """引擎运行"""
         while self.__active == True:
             try:
-                event = self.__queue.get(block = True, timeout = 0.05)  # 获取事件的阻塞时间设为1秒
+                event = self.__queue.get(block = True, timeout = 0.05)  # 获取事件的阻塞时间设为0.05秒
                 self.__process(event)
             except Empty:
-                if _DEBUG_:
-                    self.save.sync()
-            
+                pass
     #----------------------------------------------------------------------
     def __process(self, event):
         """处理事件"""

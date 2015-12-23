@@ -15,22 +15,27 @@
 
 win7 x86
 
-安装activepython2.7 x86
+安装activepython2.7 x86 (群共享内有下载)
 
-安装vcredist x86最新版
+安装vcredist x86最新版 (群共享内有下载)
 
 运行pip_install.bat
-
-运行TEST.bat检查环境是否ok
 
 
 试运行
 ======
 
-启动ZMQ.bat
+启动ZMQ.bat (若不用zmqServer可跳过此步)
 
 启动RUN.bat
 
-用firefox打开ctp.html
+用firefox打开http://localhost:9789
+
+若要配置，点击"CTP帐户管理"配置ctp帐户信息及合约交易
+
+若要监控，点击"CTP监控界面"监控帐户运行状况
+
+
+
 
 

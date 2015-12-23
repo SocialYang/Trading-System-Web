@@ -32,6 +32,7 @@ $FloatDict.__bool__ = function(self){return _b_.bool(self.valueOf())}
 $FloatDict.__class__ = $B.$type
 
 $FloatDict.__eq__ = function(self,other){
+    if(isNaN(self) && isNaN(other)){return true}
     if(isinstance(other,_b_.int)) return self==other
     if(isinstance(other,float)) {
       // new Number(1.2)==new Number(1.2) returns false !!!
@@ -342,7 +343,11 @@ $FloatDict.__mod__ = function(self,other) {
     if(isinstance(other,_b_.int)) return new Number((self%other+other)%other)
     
     if(isinstance(other,float)){
-        return new Number(((self%other)+other)%other)
+        // use truncated division
+        // cf https://en.wikipedia.org/wiki/Modulo_operation
+        var q = Math.floor(self/other),
+            r = self-other*q
+        return new Number(r)
     }
     if(isinstance(other,_b_.bool)){ 
         var bool_value=0; 
@@ -386,7 +391,37 @@ $FloatDict.__neg__ = function(self,other){return float(-self)}
 $FloatDict.__pos__ = function(self){return self}
 
 $FloatDict.__pow__= function(self,other){
-    if(isinstance(other,[_b_.int, float])) return float(Math.pow(self,other))
+    var other_int = isinstance(other, _b_.int)
+    if(other_int || isinstance(other, float)){
+        if(self==1){return self} // even for Infinity or NaN
+        if(other==0){return new Number(1)}
+
+        if(self==-1 && 
+            (!isFinite(other) || other.__class__===$B.LongInt.$dict || !$B.is_safe_int(other))
+             && !isNaN(other) ){return new Number(1)}
+        else if(self==0 && isFinite(other) && other<0){
+            throw _b_.ZeroDivisionError("0.0 cannot be raised to a negative power")
+        }else if(self==Number.NEGATIVE_INFINITY && !isNaN(other)){
+            if(other<0 && other%2==1){
+                return new Number(-0.0)
+            }else if(other<0){return new Number(0)}
+            else if(other>0 && other%2==1){
+                return Number.NEGATIVE_INFINITY
+            }else{return Number.POSITIVE_INFINITY}
+        }else if(self==Number.POSITIVE_INFINITY && !isNaN(other)){
+            return other>0 ? self : new Number(0)
+        }
+        if(other==Number.NEGATIVE_INFINITY && !isNaN(self)){
+            return Math.abs(self)<1 ? Number.POSITIVE_INFINITY : new Number(0)
+        }else if(other==Number.POSITIVE_INFINITY  && !isNaN(self)){
+            return Math.abs(self)<1 ? new Number(0) : Number.POSITIVE_INFINITY
+        }
+        if(self<0 && !_b_.getattr(other,'__eq__')(_b_.int(other))){
+            // use complex power
+            return _b_.complex.$dict.__pow__(_b_.complex(self, 0), other)
+        }
+        return float(Math.pow(self,other))
+    }
     if(hasattr(other,'__rpow__')) return getattr(other,'__rpow__')(self)
     $err("** or pow()",other)
 }
@@ -535,7 +570,6 @@ var float = function (value){
     if(isinstance(value,float)) {return value}
     if(isinstance(value,_b_.bytes)) {
       var s = getattr(value,'decode')('latin-1')
-      console.log('float bytes', s)
       return float(getattr(value,'decode')('latin-1'))
     }
     if(hasattr(value, '__float__')) {
@@ -551,7 +585,7 @@ var float = function (value){
            return Number.POSITIVE_INFINITY
          case '-inf':
          case '-infinity':
-           return Number.NEGATIVE_INFINTY
+           return Number.NEGATIVE_INFINITY
          case '+nan':
          case 'nan':
            return Number.NaN

@@ -419,6 +419,7 @@ DOMNodeDict.__eq__ = function(self,other){
 }
 
 DOMNodeDict.__getattribute__ = function(self,attr){
+
     switch(attr) {
       case 'class_name':
       case 'children':
@@ -431,8 +432,8 @@ DOMNodeDict.__getattribute__ = function(self,attr){
         return DOMNodeDict[attr](self)
 
       case 'height':
-      case 'left':
-      case 'top':
+      //case 'left':
+      //case 'top':
       case 'width':
         if(self.elt instanceof SVGElement){
             return self.elt.getAttributeNS(null, attr)
@@ -464,7 +465,7 @@ DOMNodeDict.__getattribute__ = function(self,attr){
         attr='location'
         break
     }//switch
-
+    
     if(self.elt.getAttribute!==undefined){
         res = self.elt.getAttribute(attr)
         // IE returns the properties of a DOMNode (eg parentElement)
@@ -613,7 +614,7 @@ DOMNodeDict.__str__ = DOMNodeDict.__repr__ = function(self){
 }
 
 DOMNodeDict.__setattr__ = function(self,attr,value){
-    if(attr.substr(0,2)=='on'){ // event
+   if(attr.substr(0,2)=='on'){ // event
         if (!_b_.bool(value)) { // remove all callbacks attached to event
             DOMNodeDict.unbind(self,attr.substr(2))
         }else{
@@ -630,11 +631,15 @@ DOMNodeDict.__setattr__ = function(self,attr,value){
             return
         }
         if(self.elt[attr1]!==undefined){self.elt[attr1]=value;return}
-        var res = self.elt.getAttribute(attr1)
-        if(res!==undefined&&res!==null){self.elt.setAttribute(attr1,value)}
-        else{
-            self.elt[attr]=value
+        if(typeof self.elt.getAttribute=='function' && 
+            typeof self.elt.setAttribute=='function'){
+                var res = self.elt.getAttribute(attr1)
+                if(res!==undefined&&res!==null){
+                    self.elt.setAttribute(attr1,value)
+                    return
+                }
         }
+        self.elt[attr]=value
     }
 }
 
@@ -856,6 +861,15 @@ DOMNodeDict.parent = function(self){
     return None
 }
 
+DOMNodeDict.left = {
+    '__get__': function(self){
+        return parseInt(self.elt.style.left)
+    },
+    '__set__': function(self, value){
+        self.elt.style.left = value+'px'
+    }
+}
+
 DOMNodeDict.remove = function(self,child){
     // Remove child from self
     // If child is not inside self, throw ValueError
@@ -880,6 +894,19 @@ DOMNodeDict.style = function(self){
     // set attribute "float" for cross-browser compatibility
     self.elt.style.float = self.elt.style.cssFloat || self.style.styleFloat
     return $B.JSObject(self.elt.style)
+}
+
+DOMNodeDict.top = {
+    '__get__': function(self){
+        var res = parseInt(self.elt.style.top)
+        if(isNaN(res)){
+            throw _b_.AttributeError("node has no attribute 'top'")
+        }
+        return res
+    },
+    '__set__': function(self, value){
+        self.elt.style.top = value+'px'
+    }
 }
 
 DOMNodeDict.setSelectionRange = function(self){ // for TEXTAREA
@@ -926,8 +953,6 @@ DOMNodeDict.set_style = function(self,style){ // style is a dict
               case 'left':
               case 'width':
               case 'borderWidth':
-                //if(['top','left','height','width','borderWidth'].indexOf(key)>-1
-                // && isinstance(value,_b_.int)){value = value+'px'}
                 if(isinstance(value,_b_.int)){value = value+'px'}
             }
             self.elt.style[key] = value

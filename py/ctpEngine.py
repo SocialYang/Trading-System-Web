@@ -1,6 +1,7 @@
 # encoding: UTF-8
-from datetime import date
+from datetime import date,datetime
 from time import time
+from rule import Product_Time_Rule
 import zmq
 from string import lowercase as _chars
 from string import uppercase as _CHARS
@@ -26,6 +27,9 @@ class SymbolOrdersManager:
         self.__orders = {}
         self.__hold = 0
         self.__last = 0
+        self.__timecheck = 0
+        self.__timepass = 0
+        self.__timerule = Product_Time_Rule.get(self.productid,[lambda x:x<0])#默认不交易
         self.__price = {}
         print("Symbol:",self.data)
     def openPosition(self,tr,volume):
@@ -162,6 +166,13 @@ class SymbolOrdersManager:
             if len(self.__orders)>0:
                 print(self.symbol,self.__orders)
             else:
+                if time()>self.__timecheck:
+                    self.__timecheck = int(time()/60)*60+60
+                    _now = datetime.now()
+                    _time = _now.hour*100+_now.minute
+                    self.__timepass = filter([one(_time) for one in self.__timerule]).count(True)
+                if self.__timepass>0:pass
+                else:return
                 _long       =   defineDict["THOST_FTDC_PD_Long"]
                 _short      =   defineDict["THOST_FTDC_PD_Short"]
                 long_st     =   self.__status.get(_long,{})
