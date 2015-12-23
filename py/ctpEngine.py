@@ -1,24 +1,14 @@
 # encoding: UTF-8
-
-"""
-该文件中包含的是交易平台的中间层，
-将API和事件引擎包装到一个主引擎类中，便于管理。
-
-当客户想采用服务器-客户机模式，实现交易功能放在托管机房，
-而图形控制功能在本地电脑时，该主引擎负责实现远程通讯。
-"""
 from datetime import date
-from time import sleep,time
-import shelve
-import json
+from time import time
 import zmq
+from string import lowercase as _chars
+from string import uppercase as _CHARS
 
 _YDPOSITIONDATE_ = '2'
 _TODAYPOSITIONDATE_ = '1'
 
-#from PyQt4 import QtCore
-
-from demoApi import *
+from ctpApi import *
 from eventEngine import EventEngine
 from threading import Lock
 
@@ -27,6 +17,7 @@ class SymbolOrdersManager:
         self.symbol = symbol
         self.data = data
         self.exchange = data['ExchangeID']
+        self.productid = data['ProductID']
         self.me = me
         self.__lock = Lock()
         self.__maxRetry = 5
@@ -34,9 +25,12 @@ class SymbolOrdersManager:
         self.__stlist = set()
         self.__orders = {}
         self.__hold = 0
+        self.__last = 0
         self.__price = {}
         print("Symbol:",self.data)
     def openPosition(self,tr,volume):
+        print(tr,volume)
+        if volume<=0:return
         event = Event(type_=EVENT_LOG)
         log = u'开仓[%s] %d %d'%(self.symbol,tr,volume)
         event.dict_['log'] = log
@@ -54,6 +48,8 @@ class SymbolOrdersManager:
         _ref = self.me.td.sendOrder(self.symbol,exchangeid,price,pricetype,volume,direction,offset)
         self.__orders[_ref] = (self.symbol,exchangeid,price,pricetype,volume,direction,offset,0,time())
     def closePosition(self,tr,volume):
+        print(tr,volume)
+        if volume<=0:return
         event = Event(type_=EVENT_LOG)
         log = u'平仓[%s] %d %d'%(self.symbol,tr,volume)
         event.dict_['log'] = log
@@ -71,6 +67,8 @@ class SymbolOrdersManager:
         _ref = self.me.td.sendOrder(self.symbol,exchangeid,price,pricetype,volume,direction,offset)
         self.__orders[_ref] = (self.symbol,exchangeid,price,pricetype,volume,direction,offset,0,time())
     def closeTodayPosition(self,tr,volume):
+        print(tr,volume)
+        if volume<=0:return
         event = Event(type_=EVENT_LOG)
         log = u'平今仓[%s] %d %d'%(self.symbol,tr,volume)
         event.dict_['log'] = log
@@ -147,11 +145,12 @@ class SymbolOrdersManager:
         self.__price = {"ask":_ask,"bid":_bid,"price":(_ask+_bid)/2.0}
         with self.__lock:
             if self.me.socket:
-                self.me.socket.send(bytes(json.dumps({"data":self.__price['price'],"symbol":self.symbol,"act":"result"})))
                 if (self.symbol,self.exchange) not in self.me.subInstrument:
                     self.__hold = 0
                 else:
+                    self.me.socket.send(bytes(json.dumps({"price":self.__price['price'],"symbol":self.me.master.get(self.symbol,self.symbol),"act":"result"})))
                     self.__hold = int(self.me.socket.recv())
+                    if self.__hold!=0:self.__last = self.__hold
             else:
                 return
             if int(self.me.lastError) in [31,50]:
@@ -174,7 +173,10 @@ class SymbolOrdersManager:
                     if self.__status.get(_reverse,{}).get(_YDPOSITIONDATE_,0)>0:
                         self.closePosition(d_reverse,self.__status[_reverse][_YDPOSITIONDATE_])
                     if self.__status.get(_reverse,{}).get(_TODAYPOSITIONDATE_,0)>0:
-                        self.closeTodayPosition(d_reverse,self.__status[_reverse][_TODAYPOSITIONDATE_])
+                        if self.productid in ['IF','IH','IC']:
+                            self.closeTodayPosition(d_reverse,self.__status[_reverse][_TODAYPOSITIONDATE_])
+                        else:
+                            self.closePosition(d_reverse,self.__status[_reverse][_TODAYPOSITIONDATE_])
 
                     self.__status[_reverse] = {}
 
@@ -191,7 +193,10 @@ class SymbolOrdersManager:
                             # 昨仓全平 今仓平一部分
                             self.closePosition(_pass,_old_old)
                             _old[_YDPOSITIONDATE_] = 0
-                            self.closeTodayPosition(_pass,_todo-_haved-_old_old)
+                            if self.productid in ['IF','IH','IC']:
+                                self.closeTodayPosition(_pass,_todo-_haved-_old_old)
+                            else:
+                                self.closePosition(_pass,_todo-_haved-_old_old)
                             _old[_TODAYPOSITIONDATE_] = _old_today - (_todo-_haved-_old_old)
                         elif _todo-_haved == _old_old:
                             # 昨仓全平
@@ -208,22 +213,30 @@ class SymbolOrdersManager:
                     if long_st.get(_YDPOSITIONDATE_,0)>0:
                         self.closePosition(1,long_st[_YDPOSITIONDATE_])
                     if long_st.get(_TODAYPOSITIONDATE_,0)>0:
-                        self.closeTodayPosition(1,long_st[_TODAYPOSITIONDATE_])
+                        if self.productid in ['IF','IH','IC']:
+                            self.closeTodayPosition(1,long_st[_TODAYPOSITIONDATE_])
+                        else:
+                            self.closePosition(1,long_st[_TODAYPOSITIONDATE_])
                     if short_st.get(_YDPOSITIONDATE_,0)>0:
                         self.closePosition(-1,short_st[_YDPOSITIONDATE_])
                     if short_st.get(_TODAYPOSITIONDATE_,0)>0:
-                        self.closeTodayPosition(-1,short_st[_TODAYPOSITIONDATE_])
+                        if self.productid in ['IF','IH','IC']:
+                            self.closeTodayPosition(-1,short_st[_TODAYPOSITIONDATE_])
+                        else:
+                            self.closePosition(-1,short_st[_TODAYPOSITIONDATE_])
                     self.__status = {}
-                    for _key in ['2','3']:
-                        _dict = {}
-                        _dict['InstrumentID'] = self.symbol
-                        _dict['PosiDirection'] = _key
-                        _dict['TodayPosition'] = 0
-                        _dict['YdPosition'] = 0
-                        _dict['Position'] = 0
-                        event = Event(type_=EVENT_POSIALL)
-                        event.dict_['data'] = _dict
-                        self.me.ee.put(event)
+                    if self.__last != self.__hold:
+                        self.__last = self.__hold
+                        for _key in ['2','3']:
+                            _dict = {}
+                            _dict['InstrumentID'] = self.symbol
+                            _dict['PosiDirection'] = _key
+                            _dict['TodayPosition'] = 0
+                            _dict['YdPosition'] = 0
+                            _dict['Position'] = 0
+                            event = Event(type_=EVENT_POSIALL)
+                            event.dict_['data'] = _dict
+                            self.me.ee.put(event)
                 elif self.__hold>0:
                     _todo = abs(self.__hold)
                     _pass = _long
@@ -270,7 +283,6 @@ class SymbolOrdersManager:
 
 ########################################################################
 class MainEngine:
-    """主引擎，负责对API的调度"""
 
     #----------------------------------------------------------------------
     def __init__(self, account, _plus_path, bg):
@@ -335,8 +347,8 @@ class MainEngine:
             if 'EVENT_' in k and v[0]!='_':
                 self.ee.register(v,self.websocket_send)
 
-        self.md = DemoMdApi(self, self.mdaddress, self.userid, self.password, self.brokerid, plus_path=_plus_path)    # 创建API接口
-        self.td = DemoTdApi(self, self.tdaddress, self.userid, self.password, self.brokerid, plus_path=_plus_path)
+        self.md = ctpMdApi(self, self.mdaddress, self.userid, self.password, self.brokerid, plus_path=_plus_path)    # 创建API接口
+        self.td = ctpTdApi(self, self.tdaddress, self.userid, self.password, self.brokerid, plus_path=_plus_path)
     def get_subscribe(self,_inst):
         _all = _inst.split('+')
         _today = date.today()
@@ -351,7 +363,7 @@ class MainEngine:
                     _instrumentid = _productlist[0][-1]
                     _exchangeid = self.dictInstrument.get(_instrumentid,{}).get("ExchangeID",'')
                     self.subInstrument.add((_instrumentid,_exchangeid))
-                    self.master[_instrumentid] = one
+                    self.master[_instrumentid] = one[:-1]
             else:
                 _instrumentid = one
                 _exchangeid = self.dictInstrument.get(_instrumentid,{}).get("ExchangeID",'')
@@ -391,13 +403,40 @@ class MainEngine:
                 if symbol in self.som:
                     return self.som[symbol]
                 else:
-                    one = SymbolOrdersManager(symbol,self.dictInstrument[symbol],self)
-                    self.som[symbol] = one
-                    return one
+                    _data = None
+                    if symbol in self.dictInstrument:
+                        _data = self.dictInstrument[symbol]
+                        event = Event(type_=EVENT_LOG)
+                        log = u'初始化合约[%s]并填充其基本信息'%symbol
+                        event.dict_['log'] = log
+                        self.ee.put(event)
+                    else:
+                        _productid = filter(lambda x:x in _chars+_CHARS,symbol)
+                        if _productid in self.dictProduct:
+                            for _instrument in self.dictProduct[_productid].keys():
+                                if _instrument in self.dictInstrument:
+                                    _data = self.dictInstrument[_instrument]
+                                    event = Event(type_=EVENT_LOG)
+                                    log = u'注意:初始化合约[%s]但填充了<%s>的基本信息'%(symbol,_instrument)
+                                    event.dict_['log'] = log
+                                    self.ee.put(event)
+                                    break
+                    if _data:
+                        one = SymbolOrdersManager(symbol,_data,self)
+                        self.som[symbol] = one
+                        return one
+                    else:
+                        event = Event(type_=EVENT_LOG)
+                        log = u'警告:初始化合约[%s]失败，未发现其基本信息'%symbol
+                        event.dict_['log'] = log
+                        self.ee.put(event)
+                        print("demoEngine.py MainEngine get_som not found Instrument Info")
+                        return None
+            else:
+                return None
         except Exception,e:
             print("demoEngine.py MainEngine get_som ERROR",e)
             print(event.type_,event.dict_['data'])
-
     def check_timer(self,event):
         if time()>=self.__timer:
             self.__timer = time()+1

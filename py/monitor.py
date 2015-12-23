@@ -196,7 +196,6 @@ def empty_func(_msg):
 
 funcs = {
             EVENT_EMPTY:empty_func,
-            EVENT_CTPUPDATE:event_skip,
             EVENT_LOG:event_log,
             EVENT_TICK:event_tick,
             EVENT_ORDER:event_order,
@@ -212,7 +211,7 @@ def ws_msg(ev):
     if _type in funcs:
         funcs[_type](_msg)
     else:
-        empty_func(_msg)
+        event_skip(_msg)
 
 def reconnect():
     add_log("重连ing")

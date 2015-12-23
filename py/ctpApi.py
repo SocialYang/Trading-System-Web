@@ -1,10 +1,4 @@
 # encoding: UTF-8
-
-"""
-该文件中包含的是交易平台的底层接口相关的部分，
-主要对API进行了一定程度的简化封装，方便开发。
-"""
-
 from vnctpmd import MdApi
 from vnctptd import TdApi
 from eventEngine import *
@@ -30,22 +24,14 @@ def print_dict(d):
         print key, ':', d[key]
 
 
-class DemoMdApi(MdApi):
-    """
-    Demo中的行情API封装
-    封装后所有数据自动推送到事件驱动引擎中，由其负责推送到各个监听该事件的回调函数上
-    
-    对用户暴露的主动函数包括:
-    登陆 login
-    订阅合约 subscribe
-    """
+class ctpMdApi(MdApi):
 
     #----------------------------------------------------------------------
     def __init__(self, me, address, userid, password, brokerid, plus_path=""):
         """
         API对象的初始化函数
         """
-        super(DemoMdApi, self).__init__()
+        super(ctpMdApi, self).__init__()
         
         # 事件引擎，所有数据都推送到其中，再由事件引擎进行分发
         self.__me = me
@@ -202,23 +188,12 @@ class DemoMdApi(MdApi):
 
 
 ########################################################################
-class DemoTdApi(TdApi):
-    """
-    Demo中的交易API封装
-    主动函数包括：
-    login 登陆
-    getInstrument 查询合约信息
-    getAccount 查询账号资金
-    getInvestor 查询投资者
-    getPosition 查询持仓
-    sendOrder 发单
-    cancelOrder 撤单
-    """
+class ctpTdApi(TdApi):
 
     #----------------------------------------------------------------------
     def __init__(self, me, address, userid, password, brokerid, plus_path=""):
         """API对象的初始化函数"""
-        super(DemoTdApi, self).__init__()
+        super(ctpTdApi, self).__init__()
         
         # 事件引擎，所有数据都推送到其中，再由事件引擎进行分发
         self.__me = me

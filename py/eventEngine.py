@@ -1,58 +1,13 @@
 # encoding: UTF-8
-
-# 系统模块
 from Queue import Queue, Empty
 from threading import Thread
 from time import sleep
 from thread import start_new_thread as th_fork
-
-# 第三方模块
-#from PyQt4.QtCore import QTimer
-
-# 自己开发的模块
 from eventType import *
 import json,shelve
 
-_DEBUG_ = False
 ########################################################################
 class EventEngine:
-    """
-    事件驱动引擎
-
-    事件驱动引擎中所有的变量都设置为了私有，这是为了防止不小心
-    从外部修改了这些变量的值或状态，导致bug。
-    
-    变量说明
-    __queue：私有变量，事件队列
-    __active：私有变量，事件引擎开关
-    __thread：私有变量，事件处理线程
-    __timer：私有变量，计时器
-    __handlers：私有变量，事件处理函数字典
-    
-    
-    方法说明
-    __run: 私有方法，事件处理线程连续运行用
-    __process: 私有方法，处理事件，调用注册在引擎中的监听函数
-    __onTimer：私有方法，计时器固定事件间隔触发后，向事件队列中存入计时器事件
-    start: 公共方法，启动引擎
-    stop：公共方法，停止引擎
-    register：公共方法，向引擎中注册监听函数
-    unregister：公共方法，向引擎中注销监听函数
-    put：公共方法，向事件队列中存入新的事件
-    
-    事件监听函数必须定义为输入参数仅为一个event对象，即：
-    
-    函数
-    def func(event)
-        ...
-    
-    对象方法
-    def method(self, event)
-        ...
-        
-    """
-
-    #----------------------------------------------------------------------
     def __init__(self,account):
         """初始化事件引擎"""
         self.__account = account
@@ -65,20 +20,9 @@ class EventEngine:
         # 事件处理线程
         self.__thread = Thread(target = self.__run)
         
-        # 计时器，用于触发计时器事件
-#        self.__timer = QTimer()
-#        self.__timer.timeout.connect(self.__onTimer)
-        
-        # 这里的__handlers是一个字典，用来保存对应的事件调用关系
-        # 其中每个键对应的值是一个列表，列表中保存了对该事件进行监听的函数功能
         self.__handlers = {}
 
-        if _DEBUG_:
-            self.save = shelve.open("debug_event_types")
-
-#        self.addEventTimer()
     #----------------------------------------------------------------------
-    def runit(self,event):self.__process(event)
     def __run(self):
         """引擎运行"""
         while self.__active == True:
@@ -113,9 +57,6 @@ class EventEngine:
         """停止引擎"""
         # 将引擎设为停止
         self.__active = False
-        
-        # 停止计时器
-#       self.__timer.stop()
         
         # 等待事件处理线程退出
         self.__thread.join()
@@ -160,28 +101,10 @@ class EventEngine:
 
         self.__queue.put(event)
 
-        if _DEBUG_:
-            self.save[event.type_] = event.dict_
-
 
 ########################################################################
 class Event:
-    """事件对象"""
-
     #----------------------------------------------------------------------
     def __init__(self, type_=None):
-        """Constructor"""
         self.type_ = type_      # 事件类型
         self.dict_ = {}         # 字典用于保存具体的事件数据
-        self.repeat = 0
-
-
-#----------------------------------------------------------------------
-def test():
-    """测试函数"""
-    import sys
-    from datetime import datetime
-
-# 直接运行脚本可以进行测试
-if __name__ == '__main__':
-    test()

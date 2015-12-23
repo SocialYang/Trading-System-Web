@@ -7,7 +7,7 @@ import socket
 from bottle import route,get, run, static_file,error,request
 from bottle.ext.websocket import GeventWebSocketServer
 from bottle.ext.websocket import websocket
-from demoEngine import MainEngine
+from ctpEngine import MainEngine
 from string import lowercase as _chars
 from string import uppercase as _CHARS
 from time import sleep
@@ -100,8 +100,7 @@ def start_accounts(_acc):
     for k,v in _acc.items():
         _plus = make_plus(k)
         me[k] = MainEngine(v, _plus, bg)
-        #me[k].set_instrument(v.get('instrument',[]))
-        print("account "+k+" started")
+        print(u"帐户 [ %s ] 已启动"%k)
 
 def set_accounts(_acc):
     f = shelve.open(STORE)
