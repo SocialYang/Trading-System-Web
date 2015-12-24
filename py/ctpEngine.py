@@ -109,7 +109,7 @@ class SymbolOrdersManager:
                 price = float(_saved[2])-self.data['PriceTick']
             else:
                 price = -1
-                print("demoEngine.py SymbolOrdersManager onorder not found THOST_FTDC_D")
+                print("ctpEngine.py SymbolOrdersManager onorder not found THOST_FTDC_D")
             _ref = self.me.td.sendOrder(_saved[0],_saved[1],price,_saved[3],_saved[4],_saved[5],_saved[6])
             self.__orders[_ref] = (_saved[0],_saved[1],price,_saved[3],_saved[4],_saved[5],_saved[6],_saved[7]+1,_saved[8])
         elif _data['OrderStatus'] == '2':
@@ -129,7 +129,7 @@ class SymbolOrdersManager:
                 price = float(_saved[2])-self.data['PriceTick']
             else:
                 price = -1
-                print("demoEngine.py SymbolOrdersManager onorder not found THOST_FTDC_D")
+                print("ctpEngine.py SymbolOrdersManager onorder not found THOST_FTDC_D")
             _todo = _saved[4]-_data['VolumeTraded']
             _ref = self.me.td.sendOrder(_saved[0],_saved[1],price,_saved[3],_todo,_saved[5],_saved[6])
             self.__orders[_ref] = (_saved[0],_saved[1],price,_saved[3],_todo,_saved[5],_saved[6],_saved[7]+1,_saved[8])
@@ -441,12 +441,12 @@ class MainEngine:
                         log = u'警告:初始化合约[%s]失败，未发现其基本信息'%symbol
                         event.dict_['log'] = log
                         self.ee.put(event)
-                        print("demoEngine.py MainEngine get_som not found Instrument Info")
+                        print("ctpEngine.py MainEngine get_som not found Instrument Info")
                         return None
             else:
                 return None
         except Exception,e:
-            print("demoEngine.py MainEngine get_som ERROR",e)
+            print("ctpEngine.py MainEngine get_som ERROR",e)
             print(event.type_,event.dict_['data'])
     def check_timer(self,event):
         if time()>=self.__timer:

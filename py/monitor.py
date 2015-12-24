@@ -92,9 +92,11 @@ def event_trade(_msg):
     for one in Trades:
         _doc <= one
 
-Ticks = []
+Ticks = set()
+TickDict = {}
 def event_tick(_msg):
     global Ticks
+    global TickDict
     _doc = document['marketdata']
     _l = _doc.children
     _data = _msg['data']
@@ -109,20 +111,11 @@ def event_tick(_msg):
     _content += width_label(_data["UpdateTime"],50)
     some = html.DIV(_content,id=_id)
     some.style={"text-align":"left"}
-    haved = False
-    _out = []
-    for one in Ticks:
-        if one.id == _id:
-            haved = True
-            _out = [some]+_out
-        else:
-            _out = [one]+_out
-    if not haved:
-        _out = [some]+_out
-    Ticks = _out
+    Ticks.add(_id)
+    TickDict[_id] = some
     _doc.clear()
     for one in Ticks:
-        _doc <= one
+        _doc <= TickDict[one]
 
 PosAccount = set()
 PosInst = set()
