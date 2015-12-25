@@ -152,7 +152,7 @@ class SymbolOrdersManager:
                 if (self.symbol,self.exchange) not in self.me.subInstrument:
                     self.__hold = 0
                 else:
-                    self.me.socket.send(bytes(json.dumps({"price":self.__price['price'],"symbol":self.me.master.get(self.symbol,self.symbol),"act":"result"})))
+                    self.me.socket.send(bytes(json.dumps({"eq":self.me.eq,"price":self.__price['price'],"symbol":self.me.master.get(self.symbol,self.symbol),"act":"result"})))
                     self.__hold = int(self.me.socket.recv())
                     if self.__hold!=0:self.__last = self.__hold
             else:
@@ -328,6 +328,8 @@ class MainEngine:
         self.lastError = 0
         self.lastTodo = 0
 
+        self.eq = 0
+
         # 循环查询持仓和账户相关
         self.countGet = 0               # 查询延时计数
         self.lastGet = 'Account'        # 上次查询的性质
@@ -349,6 +351,7 @@ class MainEngine:
         self.ee.register(EVENT_ORDER,       self.get_order)
         self.ee.register(EVENT_TICK,        self.get_tick)
         self.ee.register(EVENT_POSITION,    self.get_position)
+        self.ee.register(EVENT_ACCOUNT,     self.get_account)
 
         self.ee.register(EVENT_TICK,        self.check_timer)
         self.ee.register(EVENT_ORDER,       self.check_timer)
@@ -473,6 +476,9 @@ class MainEngine:
     def get_tick(self,event):
         som = self.get_som(event)
         if som:som.ontick(event)
+    def get_account(self,event):
+        _data = event.dict_['data']
+        self.eq = _data['Balance']
     def zmq_heart(self):
         if self.socket:
             self.socket.send(bytes(json.dumps({"act":"ping"})))

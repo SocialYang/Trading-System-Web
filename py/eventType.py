@@ -3,8 +3,8 @@
 EVENT_TIMER = '_eTimer'                  # 计时器事件，每隔1秒发送一次
 EVENT_LOG = 'eLog'                      # 日志事件，通常使用某个监听函数直接显示
 
-EVENT_TDLOGIN = 'eTdLogin'                  # 交易服务器登录成功事件
-EVENT_MDLOGIN = 'eMdLogin'                  # 交易服务器登录成功事件
+EVENT_TDLOGIN = '_eTdLogin'                  # 交易服务器登录成功事件
+EVENT_MDLOGIN = '_eMdLogin'                  # 交易服务器登录成功事件
 
 EVENT_TICK = 'eTick'                        # 行情推送事件
 EVENT_TICK_JUST = 'eTick.'                        # 行情推送事件
