@@ -311,6 +311,9 @@ class MainEngine:
         self.dictInstrument = {}        # 字典（保存合约查询数据）
         self.dictProduct = {}        # 字典（保存合约查询数据）
         self.dictExchange= {}
+        self.tmpInstrument = {}        # 字典（保存合约查询数据）
+        self.tmpProduct = {}        # 字典（保存合约查询数据）
+        self.tmpExchange= {}
         self.dictUpdate = None
         self.subInstrument = set()
         self.subedInstrument = set()
@@ -588,21 +591,23 @@ class MainEngine:
         data = event.dict_['data']
         last = event.dict_['last']
 
-        if data['ProductID'] not in self.dictProduct:
-            self.dictProduct[data['ProductID']] = {}
-        if data['ExchangeID'] not in self.dictExchange:
-            self.dictExchange[data['ExchangeID']] = {}
-        if data['ProductID'] not in self.dictExchange[data['ExchangeID']]:
-            self.dictExchange[data['ExchangeID']][data['ProductID']] = {}
+        if data['ProductID'] not in self.tmpProduct:
+            self.tmpProduct[data['ProductID']] = {}
+        if data['ExchangeID'] not in self.tmpExchange:
+            self.tmpExchange[data['ExchangeID']] = {}
+        if data['ProductID'] not in self.tmpExchange[data['ExchangeID']]:
+            self.tmpExchange[data['ExchangeID']][data['ProductID']] = {}
         if data['ProductID'] in data['InstrumentID'] and data['IsTrading']==1:
-            self.dictExchange[data['ExchangeID']][data['ProductID']][data['InstrumentID']] = 1
-            self.dictProduct[data['ProductID']][data['InstrumentID']] = (data['InstrumentName'],int(data['ExpireDate']))
-            self.dictInstrument[data['InstrumentID']] = data
+            self.tmpExchange[data['ExchangeID']][data['ProductID']][data['InstrumentID']] = 1
+            self.tmpProduct[data['ProductID']][data['InstrumentID']] = (data['InstrumentName'],int(data['ExpireDate']))
+            self.tmpInstrument[data['InstrumentID']] = data
 
         # 合约对象查询完成后，查询投资者信息并开始循环查询
         if last:
             # 将查询完成的合约信息保存到本地文件，今日登录可直接使用不再查询
-            self.dictUpdate = date.today()
+            self.dictProduct = self.tmpProduct
+            self.dictInstrument = self.tmpInstrument
+            self.dictExchange = self.tmpExchange
             self.set_instrument()
 
             event = Event(type_=EVENT_LOG)
