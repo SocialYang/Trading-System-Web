@@ -3,7 +3,7 @@
 import time
 import zmq
 import json
-#from stage import Stage
+from base import Base
 
 context = zmq.Context()
 socket = context.socket(zmq.REP)
@@ -12,9 +12,6 @@ socket.bind("tcp://*:9999")
 def simpletest(_price):
 	n = int(time.time()/60)
 	return str(n%3-1)
-#	st = Stage("test")
-#	st.price(_price)
-#	return str(st.get_result())
 
 def heart(_price):
 	return "pong"

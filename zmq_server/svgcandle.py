@@ -1,10 +1,10 @@
-from core import *
-from log import *
 import time
 
+def weightprice(ok,hk,lk,ck,one,add=0):
+    return add+(ok*one['o']+hk*one['h']+lk*one['l']+ck*one['c'])/(ok+hk+lk+ck)
+
 funcs = {
-"wb":wb,
-"pb":pwb,
+    'wprice':weightprice,
         }
 
 class SVG:
@@ -32,123 +32,13 @@ class SVG:
                  (128,  0,      128, )]
     line_keys = None
     lines   = {
-                "pb1":[
-                      ("mole",blue,True,"ss"),
-              ("const_34",    62,     red,  True,   "ss"),
-              ("const_-34",   -62,    green,  True,   "ss"),
-                   ],
-                "pb0":[
-                      ("mole",blue,True,"ss"),
-              ("const_34",    62,     red,  True,   "ss"),
-              ("const_-34",   -62,    green,  True,   "ss"),
-              ("const_134",    100,     red,  True,   "ss"),
-              ("const_-134",   -100,    green,  True,   "ss"),
-                      ("line_pb_3_1_0",red,True,"ss"),
-                      ("line_pb_4_1_0",green,True,"ss"),
-                      ("line_pb_5_1_0",blue,True,"ss"),
-                      ("line_pb_6_1_0",green,True,"ss"),
-                      ("line_pb_7_1_0",red,True,"ss"),
-                      ("line_pb_3_-1_0",red,True,"ss"),
-                      ("line_pb_4_-1_0",green,True,"ss"),
-                      ("line_pb_5_-1_0",blue,True,"ss"),
-                      ("line_pb_6_-1_0",green,True,"ss"),
-                      ("line_pb_7_-1_0",red,True,"ss"),
-                       ("point",        grey, False,   "ohlc"),
-                   ],
-                "pb-1":[
-                      ("mole",grey,True,"ss"),
-              ("const_34",    62,     red,  True,   "ss"),
-              ("const_-34",   -62,    green,  True,   "ss"),
-              ("const_134",    100,     red,  True,   "ss"),
-              ("const_-134",   -100,    green,  True,   "ss"),
-                      ("line_pb_3_1_-1",red,True,"ss"),
-                      ("line_pb_4_1_-1",green,True,"ss"),
-                      ("line_pb_5_1_-1",blue,True,"ss"),
-                      ("line_pb_6_1_-1",green,True,"ss"),
-                      ("line_pb_7_1_-1",red,True,"ss"),
-                      ("line_pb_3_-1_-1",red,True,"ss"),
-                      ("line_pb_4_-1_-1",green,True,"ss"),
-                      ("line_pb_5_-1_-1",blue,True,"ss"),
-                      ("line_pb_6_-1_-1",green,True,"ss"),
-                      ("line_pb_7_-1_-1",red,True,"ss"),
-                       ("point",        grey, False,   "ohlc"),
-                   ],
-                "wb1":[
-                      ("fox",blue,True,"ss"),
-              ("const_34",    162,     red,  True,   "ss"),
-              ("const_-34",   -162,    green,  True,   "ss"),
-                      ("line_wb_3_1_1",red,False,"ohlc"),
-                      ("line_wb_4_1_1",green,False,"ohlc"),
-                      ("line_wb_5_1_1",blue,False,"ohlc"),
-                      ("line_wb_6_1_1",green,False,"ohlc"),
-                      ("line_wb_7_1_1",red,False,"ohlc"),
-                      ("line_wb_3_-1_1",red,False,"ohlc"),
-                      ("line_wb_4_-1_1",green,False,"ohlc"),
-                      ("line_wb_5_-1_1",blue,False,"ohlc"),
-                      ("line_wb_6_-1_1",green,False,"ohlc"),
-                      ("line_wb_7_-1_1",red,False,"ohlc"),
-                       ("point",        grey, False,   "ohlc"),
-                   ],
-                "wb0":[
-                      ("fox",blue,True,"ss"),
-              ("const_34",    162,     red,  True,   "ss"),
-              ("const_-34",   -162,    green,  True,   "ss"),
-                      ("line_wb_3_1_0",red,False,"ohlc"),
-                      ("line_wb_4_1_0",green,False,"ohlc"),
-                      ("line_wb_5_1_0",blue,False,"ohlc"),
-                      ("line_wb_6_1_0",green,False,"ohlc"),
-                      ("line_wb_7_1_0",red,False,"ohlc"),
-                      ("line_wb_3_-1_0",red,False,"ohlc"),
-                      ("line_wb_4_-1_0",green,False,"ohlc"),
-                      ("line_wb_5_-1_0",blue,False,"ohlc"),
-                      ("line_wb_6_-1_0",green,False,"ohlc"),
-                      ("line_wb_7_-1_0",red,False,"ohlc"),
-                       ("point",        grey, False,   "ohlc"),
-                   ],
-                "wb-1":[
-                      ("fox",blue,True,"ss"),
-                      ("ru",blue,False,"ohlc"),
-                      ("rn",blue,False,"ohlc"),
-              ("const_34",    62,     red,  True,   "ss"),
-              ("const_-34",   -62,    green,  True,   "ss"),
-                      ("line_wb_3_1_-1",red,False,"ohlc"),
-                      ("line_wb_4_1_-1",green,False,"ohlc"),
-                      ("line_wb_5_1_-1",blue,False,"ohlc"),
-                      ("line_wb_6_1_-1",green,False,"ohlc"),
-                      ("line_wb_7_1_-1",red,False,"ohlc"),
-                      ("line_wb_3_-1_-1",red,False,"ohlc"),
-                      ("line_wb_4_-1_-1",green,False,"ohlc"),
-                      ("line_wb_5_-1_-1",blue,False,"ohlc"),
-                      ("line_wb_6_-1_-1",green,False,"ohlc"),
-                      ("line_wb_7_-1_-1",red,False,"ohlc"),
-                       ("point",        grey, False,   "ohlc"),
-                   ],
-            "see":[
-                      ("mole",blue,True,"ss"),
-                      ("aaa",red,True,"ss"),
-                      ("bbb",green,True,"ss"),
-                      ("ccc",eq,True,"ss"),
-                       ("point",      grey, False,   "ohlc"),
-                       ("uuu",        red, True,   "ss"),
-                       ("nnn",        green, True,   "ss"),
-              ("const_38",    62,     red,  True,   "ss"),
-              ("const_-38",   -62,    green,  True,   "ss"),
-              ("const_134",    38,     red,  True,   "ss"),
-              ("const_-134",   -38,    green,  True,   "ss"),
-                       ("mu",        grey, True,   "ss"),
-                       ("mn",        grey, True,   "ss"),
-                       ("uu",        grey, True,   "ss"),
-                       ("nn",        grey, True,   "ss"),
+                "see":[
+                        (("wprice",(1,2,3,4),(('add',10),)),   eq,    False,      "ohlc"),
+                        (("ma10",),                          red,  True,       "ohlc"),
+                        (("ma20",),                          green,  True,       "ohlc"),
                        ],
-              "only":[
-                       ("point",      grey, False,   "ohlc"),
-                     ],
-              "line":[
-                       ("km3",        blue, True,   "ss"),
-                       ("km2",        green, True,   "ss"),
-                       ("km1",        red, True,   "ss"),
-              ("const_38",    62,     red,  True,   "ss"),
-              ("const_-38",   -62,    green,  True,   "ss"),
+                "only":[
+                        (("point",),                grey,   False,      "ohlc"),
                      ],
         }
     def get_lines(self):
@@ -160,9 +50,7 @@ class SVG:
             self.line_keys = _l
             return self.line_keys
     def to_html(self):
-#        logger.error('a%.3f'%time.time())
         self.make_k()
-#        logger.error('b%.3f'%time.time())
         out = []
         n = 1
         for i in self.txt:
@@ -264,20 +152,17 @@ class SVG:
             for one in self.group:
                 k = one[0]
                 value = tmp.get(k,0.0)
-                if k in o:
-                    value = o[k]
-                elif k[0]=='-' and k[1:] in o:
-                    value = -1*o[k[1:]]
-                else:
-                    if 'line' in k:
-                        _line,_type,_pos,_un,_v = k.split("_")
-                        _pos = int(_pos)
-                        _un = int(_un)
-                        _v = int(_v)
-                        value = funcs[_type](_pos,o,_un,3,_v)
-                    elif 'const' in k:
-                        value = one[1]
-                    o[k] = value
+                _len = len(k)
+                if _len == 1 and k[0] in o:
+                    value = o[k[0]]
+                elif _len == 1 and k[0][0]=='-' and k[0][1:] in o:
+                    value = -1*o[k[0][1:]]
+                elif _len == 2:
+                    value = k[1]
+                elif _len == 3 and k[0] in funcs:
+                    _args = k[1]+(o,)
+                    _kvs = dict(k[2])
+                    value = funcs[k[0]](*_args,**_kvs)
                 tmp[k] = value
                 _l = self.out.get(one,[])
                 _l.append(value)
@@ -293,12 +178,11 @@ class SVG:
             self.max[ks]+=1
             self.min[ks]-=1
             self.k[ks] = max(0.001,(self.max[ks]-self.min[ks])/self.height)
-    def __init__(self,pos,datalist,textlist,data):
+    def __init__(self,pos,datalist,textlist):
         self.txt = textlist
         self.len = len(datalist)
-        self.group = self.lines.get(pos,'')
+        self.group = self.lines.get(pos,[])
         self.data = datalist
-        self.db = data
         self.max = {}
         self.min = {}
         self.k = {}
