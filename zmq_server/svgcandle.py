@@ -33,9 +33,13 @@ class SVG:
     line_keys = None
     lines   = {
                 "see":[
-                        (("wprice",(1,2,3,4),(('add',10),)),   eq,    False,      "ohlc"),
-                        (("ma10",),                          red,  True,       "ohlc"),
-                        (("ma20",),                          green,  True,       "ohlc"),
+                       (("signal",),                             eq,     True,       "ss"),
+                       (("uuu",),                             red,     True,       "ss"),
+                       (("nnn",),                             green,     True,       "ss"),
+                       (("bu",),                            red,   False,      "ohlc"),
+                       (("bn",),                            green,   False,      "ohlc"),
+#                        (("wprice",(1,2,3,4),(('add',10),)),    red,    False,      "ohlc"),
+#                        (("line",100),                          green,  True,       "ss"),
                        ],
                 "only":[
                         (("point",),                grey,   False,      "ohlc"),
@@ -69,7 +73,7 @@ class SVG:
         out = []
         for i in xrange(len(self.data)):
             one = self.data[i]
-            _hour = int(float(one['time'])/3600)%6
+            _hour = int(float(one.get('_time',0))/3600)%6
             color = self.timecolor[_hour]
             o = self.magic_y(one['o'],'ohlc')
             h = self.magic_y(one['h'],'ohlc')
