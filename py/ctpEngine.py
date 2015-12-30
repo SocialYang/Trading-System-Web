@@ -152,7 +152,7 @@ class SymbolOrdersManager:
                 if (self.symbol,self.exchange) not in self.me.subInstrument:
                     self.__hold = 0
                 else:
-                    self.me.socket.send(bytes(json.dumps({"eq":self.me.eq,"price":self.__price['price'],"symbol":self.me.master.get(self.symbol,self.symbol),"act":"result"})))
+                    self.me.socket.send(bytes(json.dumps({"eq":self.me.eq,"price":self.__price['price'],"exchange":self.exchange,"symbol":self.me.master.get(self.symbol,self.symbol),"act":"result"})))
                     self.__hold = int(self.me.socket.recv())
                     if self.__hold!=0:self.__last = self.__hold
             else:
@@ -170,7 +170,7 @@ class SymbolOrdersManager:
                     self.__timecheck = int(time()/60)*60+60
                     _now = datetime.now()
                     _time = _now.hour*100+_now.minute
-                    self.__timepass = filter([one(_time) for one in self.__timerule]).count(True)
+                    self.__timepass = [one(_time) for one in self.__timerule].count(True)
                 if self.__timepass>0:pass
                 else:return
                 _long       =   defineDict["THOST_FTDC_PD_Long"]
@@ -482,6 +482,7 @@ class MainEngine:
     def get_account(self,event):
         _data = event.dict_['data']
         self.eq = _data['Balance']
+        print("account"+str(self.eq))
     def zmq_heart(self):
         if self.socket:
             self.socket.send(bytes(json.dumps({"act":"ping"})))
