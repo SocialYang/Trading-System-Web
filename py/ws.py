@@ -16,6 +16,9 @@ from threading import Lock
 
 cs = set()
 me = {}
+cache = {}
+cache['len'] = 100
+cache['msg'] = []
 STORE = "local_store"
 
 @route('/css/<file_name>')
@@ -83,6 +86,8 @@ class Bridge:
     def send_ws(self,event):
         try:
             _data = json.dumps(event.dict_,ensure_ascii=False)
+            _l = cache['msg']+[_data]
+            cache['msg'] = _l[-1*cache['len']:]
             if event.type_ == EVENT_LOG:
                 print(event.dict_['log'])
             for _ws in cs:
@@ -172,8 +177,8 @@ funcs = {
 def echo(ws):
     cs.add(ws)
     print(u'客户端'+str(ws)+u'连接至websocket')
-    for one in me.values():
-        one.set_ws(cs)
+    for _msg in cache['msg']:
+        ws.send(_msg)
     while True:
         msg = ws.receive()
         if msg is not None:
@@ -186,5 +191,3 @@ def echo(ws):
         else: break
     cs.remove(ws)
     print(u'客户端'+str(ws)+u'断开连接')
-    for one in me.values():
-        one.set_ws(cs)

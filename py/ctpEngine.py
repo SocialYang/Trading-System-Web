@@ -19,6 +19,7 @@ class SymbolOrdersManager:
         self.data = data
         self.exchange = data['ExchangeID']
         self.productid = data['ProductID']
+        print("init...som.....",str(self.data))
         self.me = me
         self.__lock = Lock()
         self.__maxRetry = 5
@@ -482,7 +483,6 @@ class MainEngine:
     def get_account(self,event):
         _data = event.dict_['data']
         self.eq = _data['Balance']
-        print("account"+str(self.eq))
     def zmq_heart(self):
         if self.socket:
             self.socket.send(bytes(json.dumps({"act":"ping"})))
