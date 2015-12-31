@@ -147,14 +147,21 @@ class SymbolOrdersManager:
         _symbol = _data['InstrumentID']
         _exchange =  self.data.get("ExchangeID",'')
         self.__price = {"ask":_ask,"bid":_bid,"price":(_ask+_bid)/2.0}
+        if time()>self.__timecheck:
+            self.__timecheck = int(time()/60)*60+60
+            _now = datetime.now()
+            _time = _now.hour*100+_now.minute
+            self.__timepass = [one(_time) for one in self.__timerule].count(True)
         with self.__lock:
             if self.me.socket:
                 if (self.symbol,self.exchange) not in self.me.subInstrument:
                     self.__hold = 0
-                else:
+                elif self.__timepass>0:
                     self.me.socket.send(bytes(json.dumps({"eq":self.me.eq,"price":self.__price['price'],"exchange":self.exchange,"symbol":self.me.master.get(self.symbol,self.symbol),"act":"result"})))
                     self.__hold = int(self.me.socket.recv())
                     if self.__hold!=0:self.__last = self.__hold
+                else:
+                    self.__hold = 0
             else:
                 return
             if int(self.me.lastError) in [31,50]:
@@ -166,13 +173,6 @@ class SymbolOrdersManager:
             if len(self.__orders)>0:
                 print(self.symbol,self.__orders)
             else:
-                if time()>self.__timecheck:
-                    self.__timecheck = int(time()/60)*60+60
-                    _now = datetime.now()
-                    _time = _now.hour*100+_now.minute
-                    self.__timepass = [one(_time) for one in self.__timerule].count(True)
-                if self.__timepass>0:pass
-                else:return
                 _long       =   defineDict["THOST_FTDC_PD_Long"]
                 _short      =   defineDict["THOST_FTDC_PD_Short"]
                 long_st     =   self.__status.get(_long,{})
