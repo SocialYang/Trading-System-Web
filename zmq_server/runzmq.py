@@ -1,31 +1,47 @@
 #coding:utf-8
-
+from base import *
+from log import *
 import time
 import zmq
 import json
-from base import Base
+import requests
 
 context = zmq.Context()
 socket = context.socket(zmq.REP)
 socket.bind("tcp://*:9999")
 
-def simpletest(_price):
-	n = int(time.time()/60)
-	return str(n%3-1)
+time.sleep(1)
+logit("begin loop")
 
-def heart(_price):
-	return "pong"
+def get_result(_msg):
+    try:
+        _symbol = _msg.get("symbol","test")
+        _exchange = _msg.get("exchange","test")
+        _money = _msg.get("eq","1.0")
+        _price = _msg.get("price",1.0)
+        _point = mathlog(_price)*3400
+        b = Base(_exchange,_symbol,conn,allstate)
+        b.account_money(float(_money))
+        b.new_price(time.time(),_point,_price)
+        return '0'#str(b.get_result()['result'])
+    except Exception,e:
+        logit("zmq_error")
+        logit(str(e.message))
+        return "0"*20
+
+def nothing(_msg):pass
 
 Funcs = {
-	"ping":heart,
+"result":get_result,
 }
 
 while True:
-	try:
-		_dict = json.loads(socket.recv())
-		_func = Funcs.get(_dict.get("act","none"),simpletest)
-		bk = _func(_dict.get("data",0.0))
-	except:
-		bk = 'zmq_err'
-	finally:
-		socket.send(bytes(bk))
+    try:
+        _dict = json.loads(socket.recv())
+        _func = Funcs.get(_dict.get("act","none"),nothing)
+        bk = _func(_dict)
+    except Exception,e:
+        logit("zmq_error:"+str(e.message))
+        bk = "0"*20
+    finally:
+        socket.send(bytes(bk))

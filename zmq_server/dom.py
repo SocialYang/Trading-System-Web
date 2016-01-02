@@ -52,11 +52,11 @@ ObjectId('50dad8641ffd9e1adc57d46a'), u'id': u'2', u'v': 2}]
 '''
 from settings import mongo_server
 import time
-from pymongo import Connection as _mc
+from pymongo import MongoClient as _mc
 from pymongo import ASCENDING as asc
 from pymongo import DESCENDING as desc
 
-_DB_Name = 'dom_20150321'
+_DB_Name = 'dom'
 
 class dictomongo( dict ):
     def ensure_index(self,index_list,ttl=3600*24):  #   [(key1,desc),(key2,asc)...]

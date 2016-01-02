@@ -1,5 +1,5 @@
 from bson.timestamp import Timestamp
-from pymongo import Connection
+from pymongo import MongoClient as Connection
 from pymongo.errors import AutoReconnect
 import logging
 from pymongo import ASCENDING as asc
@@ -66,7 +66,7 @@ class MongoFormatter(logging.Formatter):
 
 class MongoHandler(logging.Handler):
 
-    def __init__(self, level=logging.NOTSET, host=mongo_server, port=27017, database_name='alllog', collection='logs',
+    def __init__(self, level=logging.NOTSET, host=mongo_server, port=27017, database_name='logs', collection='logs',
                  username=None, password=None, fail_silently=False, formatter=None):
         """Setting up mongo handler, initializing mongo database connection via pymongo."""
         logging.Handler.__init__(self, level)
@@ -110,7 +110,7 @@ class MongoHandler(logging.Handler):
         if self.authenticated:
             self.db.logout()
         if self.connection is not None:
-            self.connection.disconnect()
+            self.connection.close()
 
     def emit(self, record):
         """Inserting new logging record to mongo database."""

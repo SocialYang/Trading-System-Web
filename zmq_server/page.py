@@ -2,13 +2,14 @@
 from bottle import route,run,debug,request,redirect,response,error,static_file
 import bottle,os
 from cmath import log as mathclog
-import time,sys,datetime,random
-from base import Base
+import time,sys,datetime,random,acc
+from base import *
 from life import *
 from svgcandle import *
 from mongo_log_handlers import MongoHandler
 from settings import mongo_server
 from qqmail import *
+from log import *
 import thread
 
 def mathlog(a):return mathclog(a).real
@@ -16,6 +17,7 @@ def mathlog(a):return mathclog(a).real
 def now():return datetime.datetime.now()
 
 cache = {}
+cache['pass'] = time.time()+3600*24*7
 
 def logten():
     ip = request['REMOTE_ADDR']
@@ -27,11 +29,11 @@ def logten():
         cache['url'][ip+url]=0
         if len(cache['url'])>200:
             cache['url']={}
-            logger.error('clear cache url')
+            logit('clear cache url')
         if 'Mozilla/4.0' in request.environ.get('HTTP_USER_AGENT','no agent'):
             pass
         else:
-            logger.error('''url @ %s [ <a href="http://www.baidu.com/s?wd=%s&_=%.0f" target="_blank">%s</a> ] %.1f
+            logit('''url @ %s [ <a href="http://www.baidu.com/s?wd=%s&_=%.0f" target="_blank">%s</a> ] %.1f
                 <span style="color:gray">%s</span>'''%(url,ip,time.time()/10,ip,cache['pass']-time.time(),request.environ.get('HTTP_USER_AGENT','no agent')))
     return True
 
@@ -62,9 +64,10 @@ def show_logs():
 
 @route('/')
 def index():
+    logten()
     global cache
-    _all = conn.database.names()
-    _list = filter(lambda x:'_' in x and k[0]=='k',_all)
+    _all = conn.database_names()
+    _list = filter(lambda x:'_' in x and x[0]=='k',_all)
     out = []
     len = request.query.l or cache.get('len','100')
     cache['len'] = len
@@ -77,12 +80,18 @@ def index():
     all = '&nbsp;'.join(out)
     return '''<html><head></head><body><br/>%s</body></html>'''%all
 
+@route('/delete/:symbol/')
+def del_symbol(symbol):
+    conn.drop_database(symbol)
+    return 'ok'
+
 @route('/list/:symbol/')
 def get_symbol(symbol):
+    logten()
     len = request.query.l or cache.get('len','100')
     cache['len'] = len
     _k,_exchange,_symbol,_plus = symbol.split('_')
-    b=Base(exchange,symbol,conn,allstate,plus=plus)
+    b=Base(_exchange,_symbol,conn,allstate,plus=_plus)
     s=SVG('',[],'')
     _all = s.get_lines()
     _tf = b.get_timeframe()
@@ -95,16 +104,27 @@ def get_symbol(symbol):
         for tf in _tf:
             out.append('<a href="/image/%s/%s/%s/" target="_blank">%s[%s]</a>'%(symbol,one,tf,one,tf))
         out.append("<br/>")
+    out.append("<br/>")
+    out.append("<br/>")
+    out.append("<br/>")
+    out.append("<br/>")
+    out.append("<br/>")
+    out.append("<br/>")
+    out.append(u'<a href="/delete/%s/" target="_blank">删除 %s !!!</a>'%(symbol,symbol))
     all = '&nbsp;'.join(out)
     return '''<html><head></head><body><br/>%s</body></html>'''%all
 
 @route('/image/:symbol/:group/:tf/')
 def get_image(symbol,group,tf):
+    logten()
     len = request.query.l or cache.get('len','100')
     o = request.query.p or '0'
     cache['len'] = len
     _k,_exchange,_symbol,_plus = symbol.split('_')
-    b=Base(_exchange,_symbol,conn,allstate,plus=_plus)
+    if _plus:
+        b=Base(_exchange,_symbol,conn,allstate,plus=_plus)
+    else:
+        b=Base(_exchange,_symbol,conn,allstate)
     out = []
     out.append(_exchange)
     out.append(_symbol)
@@ -117,5 +137,5 @@ def get_image(symbol,group,tf):
     out.append("<br/>")
     out.append(_page)
     all = '&nbsp;'.join(out)
-    return '''<!DOCTYPE html><head></head><body><br/>%s</body></html>'''%all
+    return '''<!DOCTYPE html><head><META HTTP-EQUIV="REFRESH" CONTENT="10"></head><body><br/>%s</body></html>'''%all
 
