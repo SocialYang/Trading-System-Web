@@ -30,7 +30,7 @@ class SymbolOrdersManager:
         self.__last = 0
         self.__timecheck = 0
         self.__timepass = 0
-        self.__timerule = Product_Time_Rule.get(self.productid,[lambda x:x<0])#默认不交易
+        self.__timerule = Product_Time_Rule.get(self.productid,[lambda x:x>0])#默认不交易
         self.__price = {}
         print("Symbol:",self.data)
     def openPosition(self,tr,volume):
@@ -147,7 +147,7 @@ class SymbolOrdersManager:
         _bid = _data['BidPrice1']
         _symbol = _data['InstrumentID']
         _exchange =  self.data.get("ExchangeID",'')
-        self.__price = {"ask":_ask,"bid":_bid,"price":(_ask+_bid)/2.0}
+        self.__price = {"ask":_ask,"bid":_bid,"price":(_ask*_ask+_bid*_bid)/(_ask+_bid)}
         if time()>self.__timecheck:
             self.__timecheck = int(time()/60)*60+60
             _now = datetime.now()
@@ -392,12 +392,12 @@ class MainEngine:
             for one in self.subInstrument:
                 if one[0] in self.master:
                     event = Event(type_=EVENT_LOG)
-                    log = u'订阅主力合约:%s[%s]'%(one[0],self.master[one[0]])
+                    log = u'订阅主力合约:%s[%s]'%(one[0],self.dictInstrument[one[0]]['InstrumentName'])
                     event.dict_['log'] = log
                     self.ee.put(event)
                 else:
                     event = Event(type_=EVENT_LOG)
-                    log = u'订阅合约:%s'%one[0]
+                    log = u'订阅合约:%s[%s]'%(one[0],self.dictInstrument[one[0]]['InstrumentName'])
                     event.dict_['log'] = log
                     self.ee.put(event)
                 self.subscribe(one[0],one[1])
