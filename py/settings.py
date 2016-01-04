@@ -35,7 +35,7 @@ def update_account(accs):
 def addnew(ev):
     def check_front(a):
         return a[:4]=="tcp:"
-    if check_front(document['mdfront'].value) and check_front(document['tdfront'].value) and check_front(document['zmqserver'].value):
+    if check_front(document['mdfront'].value) and check_front(document['tdfront'].value):
         document['console'].clear()
         one = {}
         for _k in ["userid","password","mdfront","tdfront","brokerid",'usezmq','zmqserver','instrument']:

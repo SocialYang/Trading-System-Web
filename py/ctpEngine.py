@@ -3,6 +3,7 @@ from datetime import date,datetime
 from time import time
 from rule import Product_Time_Rule
 import zmq
+from remote import *
 from string import lowercase as _chars
 from string import uppercase as _CHARS
 
@@ -30,7 +31,7 @@ class SymbolOrdersManager:
         self.__last = 0
         self.__timecheck = 0
         self.__timepass = 0
-        self.__timerule = Product_Time_Rule.get(self.productid,[lambda x:x>0])#默认不交易
+        self.__timerule = Product_Time_Rule.get(self.productid,[lambda x:x>0])#默认交易
         self.__price = {}
         print("Symbol:",self.data)
     def openPosition(self,tr,volume):
@@ -158,8 +159,8 @@ class SymbolOrdersManager:
                 if (self.symbol,self.exchange) not in self.me.subInstrument:
                     self.__hold = 0
                 elif self.__timepass>0:
-                    self.me.socket.send(bytes(json.dumps({"eq":self.me.eq,"price":self.__price['price'],"exchange":self.exchange,"symbol":self.me.master.get(self.symbol,self.symbol),"act":"result"})))
-                    self.__hold = int(self.me.socket.recv())
+                    _dict = {"account":self.me.userid,"eq":self.me.eq,"price":self.__price['price'],"exchange":self.exchange,"symbol":self.me.master.get(self.symbol,self.symbol),"act":"result"}
+                    self.__hold = self.me.corefunc(_dict,self)
                     if self.__hold!=0:self.__last = self.__hold
                 else:
                     self.__hold = 0
@@ -320,12 +321,18 @@ class MainEngine:
         self.subedInstrument = set()
         self.master = {}    #   记录主力合约对应关系
         self.socket = None
+        self.coreServer = str(account['zmqserver'])
+        self.corefunc = passit
         if int(account['usezmq'])>0:
-            context = zmq.Context()
-            socket = context.socket(zmq.REQ)
-            socket.connect(str(account['zmqserver']))
-            self.socket = socket
-
+            if self.coreServer[:4] == 'tcp:':
+                context = zmq.Context()
+                socket = context.socket(zmq.REQ)
+                socket.connect(self.coreServer)
+                self.socket = socket
+                self.corefunc = tcpfunc
+            elif self.coreServer[:5] == 'http:':
+                self.socket = True
+                self.corefunc = httpfunc
         self.ee.start()                 # 启动事件驱动引擎
         self.som = {}
 
