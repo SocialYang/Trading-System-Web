@@ -37,7 +37,7 @@ class Base:
 #=====================================================================
     def get_timeframe(self):
         return self.todo
-    def get_result(self):
+    def get_result(self,passit=1):
         c = self.cache
         s = self.state
         i = self.todo[0]
@@ -54,6 +54,7 @@ class Base:
             c[one][0]['point'] = s.get('point',c[one][0]['c'])
             self.cache[one][0] = c[one][0]
             self.save(one,c[one][0])
+        if passit<1:return
 
         LS = s.get('ls',1)
         Real = s.get('real',0.0)
@@ -143,6 +144,7 @@ class Base:
     def check_base(self,pos,_todo,_last):
         _todo['_do'] = 1
         self.save(pos,_todo)
+        self.get_result(passit=0)
         return _todo
     def check_k_period(self,now,last,timeframe):
         _hour = int(self.timer/int(timeframe))

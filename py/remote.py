@@ -8,8 +8,8 @@ def tcpfunc(_dict,_som):
 def httpfunc(_dict,_som):
     _url = _som.me.coreServer
     _url += '/tick/%(account)s/%(eq).2f/%(price).2f/%(symbol)s/%(exchange)s/%(act)s/'%_dict
-    _q = urlopen(_url,timeout=1000)
     try:
+        _q = urlopen(_url,timeout=1000)
         return int(_q.readline())
     except:
         return 0
