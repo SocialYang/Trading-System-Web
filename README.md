@@ -35,7 +35,10 @@ win7 x86
 
 若要监控，点击"CTP监控界面"监控帐户运行状况
 
+回测
+====
 
-
+运行python py/rebuild.py即可使用实时运行时保存的tick数据完成回测
+可更改rebuild.py中的exchange和symbol来指定回测品种
 
 
