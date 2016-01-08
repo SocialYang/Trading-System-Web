@@ -470,7 +470,10 @@ class MainEngine:
     def set_ws(self,ws):
         self.websocket = ws
     def websocket_send(self,event):
-        self.bridge.send_ws(event)
+        try:
+            self.bridge.send_ws(event)
+        except:
+            pass
     def get_error(self,event):
         print(event.dict_['log'])
         print(event.dict_['ErrorID'])
