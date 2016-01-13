@@ -20,6 +20,7 @@ class SymbolOrdersManager:
         self.data = data
         self.exchange = data['ExchangeID']
         self.productid = data['ProductID']
+        self.pointValue = data['VolumeMultiple']
         print("init...som.....",str(self.data))
         self.me = me
         self.__lock = Lock()
@@ -159,7 +160,7 @@ class SymbolOrdersManager:
                 if (self.symbol,self.exchange) not in self.me.subInstrument:
                     self.__hold = 0
                 elif self.__timepass>0:
-                    _dict = {"account":self.me.userid,"eq":self.me.eq,"price":self.__price['price'],"exchange":self.exchange,"symbol":self.me.master.get(self.symbol,self.symbol),"act":"result"}
+                    _dict = {"point":self.pointValue,"account":self.me.userid,"eq":self.me.eq,"price":self.__price['price'],"exchange":self.exchange,"symbol":self.me.master.get(self.symbol,self.symbol),"act":"result"}
                     self.__hold = self.me.corefunc(_dict,self)
                     if self.__hold!=0:self.__last = self.__hold
                 else:
