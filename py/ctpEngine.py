@@ -18,7 +18,7 @@ class SymbolOrdersManager:
     def __init__(self,symbol,data,me):
         self.symbol = symbol
         self.data = data
-        self.exchange = data['ExchangeID']
+        self.exchange = "CTP"#data['ExchangeID']
         self.productid = data['ProductID']
         self.pointValue = data['VolumeMultiple']
         print("init...som.....",str(self.data))
