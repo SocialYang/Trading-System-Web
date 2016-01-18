@@ -156,7 +156,7 @@ class SymbolOrdersManager:
             _time = _now.hour*100+_now.minute
             self.__timepass = [one(_time) for one in self.__timerule].count(True)
         with self.__lock:
-            if _data['UpdateTime'][:5] == '14:55':
+            if _data['UpdateTime'][:4] == '14:5':
                 self.me.dictProduct[self.productid][self.symbol] = _data['Volume']
                 self.me.set_instrument()
             if self.me.socket:
@@ -473,7 +473,7 @@ class MainEngine:
             event = Event(type_=EVENT_TIMER)
             self.ee.put(event)
 
-            if event.type_==EVENT_TICK and event.dict_['data']['UpdateTime'][:5]=="14:55":
+            if event.type_==EVENT_TICK and event.dict_['data']['UpdateTime'][:4]=="14:5":
                 _all = self.master.items()
                 for _inst,_prod in _all:
                     for _instr,_v in self.dictProduct[_prod].items():
