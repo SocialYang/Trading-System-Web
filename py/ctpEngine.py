@@ -156,6 +156,9 @@ class SymbolOrdersManager:
             _time = _now.hour*100+_now.minute
             self.__timepass = [one(_time) for one in self.__timerule].count(True)
         with self.__lock:
+            if _data['UpdateTime'][:5] == '14:55':
+                self.me.dictProduct[self.productid][self.symbol] = _data['Volume']
+                self.me.set_instrument()
             if self.me.socket:
                 if (self.symbol,self.exchange) not in self.me.subInstrument:
                     self.__hold = 0
@@ -384,8 +387,8 @@ class MainEngine:
                 _productid = one[:-1]
                 if _productid in self.dictProduct:
                     _product = self.dictProduct[_productid]
-                    _productlist = filter( lambda x:x[0]>_date , [ (v[-1],k) for k,v in _product.items()] )
-                    _productlist.sort()
+                    _productlist = [ (v,k) for k,v in _product.items()]
+                    _productlist.sort(reserve=True)
                     _instrumentid = _productlist[0][-1]
                     _exchangeid = self.dictInstrument.get(_instrumentid,{}).get("ExchangeID",'')
                     self.subInstrument.add((_instrumentid,_exchangeid))
@@ -463,11 +466,21 @@ class MainEngine:
         except Exception,e:
             print("ctpEngine.py MainEngine get_som ERROR",e)
             print(event.type_,event.dict_['data'])
+
     def check_timer(self,event):
         if time()>=self.__timer:
             self.__timer = time()+1
             event = Event(type_=EVENT_TIMER)
             self.ee.put(event)
+
+            if event.type_==EVENT_TICK and event.dict_['data']['UpdateTime'][:5]=="14:55":
+                _all = self.master.items()
+                for _inst,_prod in _all:
+                    for _instr,_v in self.dictProduct[_prod].items():
+                        _exchangeid = self.dictInstrument.get(_instr,{}).get("ExchangeID",'')
+                        self.subscribe(_instr,_exchangeid)
+                self.master = {}
+
     def set_ws(self,ws):
         self.websocket = ws
     def websocket_send(self,event):
@@ -611,7 +624,10 @@ class MainEngine:
             self.tmpExchange[data['ExchangeID']][data['ProductID']] = {}
         if data['ProductID'] in data['InstrumentID'] and data['IsTrading']==1:
             self.tmpExchange[data['ExchangeID']][data['ProductID']][data['InstrumentID']] = 1
-            self.tmpProduct[data['ProductID']][data['InstrumentID']] = (data['InstrumentName'],int(data['ExpireDate']))
+            if data['InstrumentID'] not in self.Product[data['ProductID']]:
+                self.tmpProduct[data['ProductID']][data['InstrumentID']] = 0
+            else:
+                self.tmpProduct[data['ProductID']][data['InstrumentID']] = self.ProductProduct[data['ProductID']][data['InstrumentID']]
             self.tmpInstrument[data['InstrumentID']] = data
 
         # 合约对象查询完成后，查询投资者信息并开始循环查询
