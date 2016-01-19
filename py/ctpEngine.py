@@ -159,8 +159,7 @@ class SymbolOrdersManager:
             if _data['UpdateTime'][:4] == '14:5':
                 self.me.dictProduct[self.productid][self.symbol] = _data['Volume']
                 self.me.set_instrument()
-                if _data['Volume']<max(self.me.dictProduct[self.productid].values()):
-                    return
+                if self.symbol in self.me.subedMaster:return
             if self.me.socket:
                 if (self.symbol,self.exchange) not in self.me.subInstrument:
                     self.__hold = 0
@@ -326,6 +325,7 @@ class MainEngine:
         self.subInstrument = set()
         self.subedInstrument = set()
         self.master = {}    #   记录主力合约对应关系
+        self.subedMaster = {}
         self.socket = None
         self.coreServer = str(account['zmqserver'])
         self.corefunc = passit
@@ -480,12 +480,13 @@ class MainEngine:
                 for _inst,_prod in _all:
                     for _instr,_v in self.dictProduct[_prod].items():
                         _exchangeid = self.dictInstrument.get(_instr,{}).get("ExchangeID",'')
-                        event = Event(type_=EVENT_LOG)
-                        log = u'订阅[%s]以分析主力合约持仓'%_instr
-                        event.dict_['log'] = log
-                        self.ee.put(event)
-                        self.subscribe(_instr,_exchangeid)
-                self.master = {}
+                        if (_instr,_exchangeid) not in self.subInstrument and _instr not in self.subedMaster:
+                            event = Event(type_=EVENT_LOG)
+                            log = u'订阅[%s]以分析主力合约持仓'%_instr
+                            event.dict_['log'] = log
+                            self.ee.put(event)
+                            self.subscribe(_instr,_exchangeid)
+                            self.subedMaster[_instr]=0
 
     def set_ws(self,ws):
         self.websocket = ws
