@@ -390,7 +390,7 @@ class MainEngine:
                 if _productid in self.dictProduct:
                     _product = self.dictProduct[_productid]
                     _productlist = [ (v,k) for k,v in _product.items()]
-                    _productlist.sort(reserve=True)
+                    _productlist.sort(reverse=True)
                     _instrumentid = _productlist[0][-1]
                     _exchangeid = self.dictInstrument.get(_instrumentid,{}).get("ExchangeID",'')
                     self.subInstrument.add((_instrumentid,_exchangeid))
