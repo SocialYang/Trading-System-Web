@@ -399,6 +399,7 @@ class MainEngine:
                 _instrumentid = one
                 _exchangeid = self.dictInstrument.get(_instrumentid,{}).get("ExchangeID",'')
                 self.subInstrument.add((_instrumentid,_exchangeid))
+        print(self.subInstrument)
     def ready_subscribe(self,event):
         self.__readySubscribe[event.type_] = 1
         if len(self.__readySubscribe) == 2:
@@ -631,10 +632,10 @@ class MainEngine:
             self.tmpExchange[data['ExchangeID']][data['ProductID']] = {}
         if data['ProductID'] in data['InstrumentID'] and data['IsTrading']==1:
             self.tmpExchange[data['ExchangeID']][data['ProductID']][data['InstrumentID']] = 1
-            if data['InstrumentID'] not in self.Product[data['ProductID']]:
+            if data['InstrumentID'] not in self.dictProduct[data['ProductID']]:
                 self.tmpProduct[data['ProductID']][data['InstrumentID']] = 0
             else:
-                self.tmpProduct[data['ProductID']][data['InstrumentID']] = self.ProductProduct[data['ProductID']][data['InstrumentID']]
+                self.tmpProduct[data['ProductID']][data['InstrumentID']] = self.dictProduct[data['ProductID']][data['InstrumentID']]
             self.tmpInstrument[data['InstrumentID']] = data
 
         # 合约对象查询完成后，查询投资者信息并开始循环查询
