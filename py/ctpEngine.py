@@ -166,7 +166,7 @@ class SymbolOrdersManager:
                 if (self.symbol,self.exchange) not in self.me.subInstrument:
                     self.__hold = 0
                 elif self.__timepass>0:
-                    _dict = {"point":self.pointValue,"account":self.me.userid,"eq":self.me.eq,"price":self.__price['price'],"exchange":'ctp',"symbol":self.me.master.get(self.symbol,self.symbol),"act":"result"}
+                    _dict = {"point":self.pointValue,"account":self.me.userid,"eq":self.me.eq,"price":self.__price['price'],"exchange":'ctp',"symbol":self.productid,"act":"result"}
                     self.__hold = self.me.corefunc(_dict,self)
                     if self.__hold!=0:self.__last = self.__hold
                 else:
