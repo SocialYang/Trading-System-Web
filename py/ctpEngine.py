@@ -507,7 +507,7 @@ class MainEngine:
                         if _inst!=_instr and _instr in self.som:
                             self.som.pop(_instr)
                 self.masterSubed = False
-                self.me.set_instrument()
+                self.set_instrument()
 
     def set_ws(self,ws):
         self.websocket = ws

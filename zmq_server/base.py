@@ -145,6 +145,10 @@ class Base:
         _todo['_do'] = 1
         self.save(pos,_todo)
         self.get_result(passit=0)
+        if _last:
+            self.cache[pos] = [_todo,_last]
+        else:
+            self.cache[pos] = [_todo]
         return _todo
     def check_k_period(self,now,last,timeframe):
         _hour = int(self.timer/int(timeframe))
