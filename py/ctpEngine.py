@@ -153,10 +153,11 @@ class SymbolOrdersManager:
         if time()>self.__timecheck:
             self.__timecheck = int(time()/60)*60+60
             _now = datetime.now()
+            self.me.now = _now
             _time = _now.hour*100+_now.minute
             self.__timepass = [one(_time) for one in self.__timerule].count(True)
         with self.__lock:
-            if _data['UpdateTime'][:4] == '14:5':
+            if self.me.now.hour==14 and self.me.now.minute>=55:
                 self.me.dictProduct[self.productid][self.symbol] = _data['Volume']
                 self.me.set_instrument()
                 if self.symbol in self.me.subedMaster:return
@@ -326,6 +327,8 @@ class MainEngine:
         self.subedInstrument = set()
         self.master = {}    #   记录主力合约对应关系
         self.subedMaster = {}
+        self.masterSubed = False
+        self.now = datetime.now()
         self.socket = None
         self.coreServer = str(account['zmqserver'])
         self.corefunc = passit
@@ -394,7 +397,7 @@ class MainEngine:
                     _instrumentid = _productlist[0][-1]
                     _exchangeid = self.dictInstrument.get(_instrumentid,{}).get("ExchangeID",'')
                     self.subInstrument.add((_instrumentid,_exchangeid))
-                    self.master[_instrumentid] = one[:-1]
+                    self.master[_instrumentid] = _product
             else:
                 _instrumentid = one
                 _exchangeid = self.dictInstrument.get(_instrumentid,{}).get("ExchangeID",'')
@@ -476,18 +479,25 @@ class MainEngine:
             event = Event(type_=EVENT_TIMER)
             self.ee.put(event)
 
-            if event.type_==EVENT_TICK and event.dict_['data']['UpdateTime'][:4]=="14:5":
+            if not self.masterSubed and self.now.hour==14 and self.now.minute>=55:
                 _all = self.master.items()
-                for _inst,_prod in _all:
-                    for _instr,_v in self.dictProduct[_prod].items():
+                event = Event(type_=EVENT_LOG)
+                log = u'订阅主力合约其他合约'
+                event.dict_['log'] = log
+                self.ee.put(event)
+                _pass = True
+                for _inst,_all in _all:
+                    for _instr,_v in _all.items():
                         _exchangeid = self.dictInstrument.get(_instr,{}).get("ExchangeID",'')
-                        if (_instr,_exchangeid) not in self.subInstrument and _instr not in self.subedMaster:
+                        if _instr not in self.som:
                             event = Event(type_=EVENT_LOG)
                             log = u'订阅[%s]以分析主力合约持仓'%_instr
                             event.dict_['log'] = log
                             self.ee.put(event)
                             self.subscribe(_instr,_exchangeid)
-                            self.subedMaster[_instr]=0
+                            if _inst!=_instr:self.subedMaster[_instr]=0
+                            _pass = False
+                self.masterSubed = _pass
 
     def set_ws(self,ws):
         self.websocket = ws
