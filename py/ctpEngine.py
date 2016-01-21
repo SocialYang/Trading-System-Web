@@ -18,7 +18,7 @@ class SymbolOrdersManager:
     def __init__(self,symbol,data,me):
         self.symbol = symbol
         self.data = data
-        self.exchange = "CTP"#data['ExchangeID']
+        self.exchange = data['ExchangeID']
         self.productid = data['ProductID']
         self.pointValue = data['VolumeMultiple']
         print("init...som.....",str(self.data))
@@ -160,12 +160,14 @@ class SymbolOrdersManager:
             if self.me.now.hour==14 and self.me.now.minute>=55:
                 self.me.dictProduct[self.productid][self.symbol] = _data['Volume']
                 self.me.set_instrument()
-                if self.symbol in self.me.subedMaster:return
+                if self.symbol in self.me.subedMaster:
+                    self.me.unsubscribe(self.symbol,self.exchange)
+                    return
             if self.me.socket:
                 if (self.symbol,self.exchange) not in self.me.subInstrument:
                     self.__hold = 0
                 elif self.__timepass>0:
-                    _dict = {"point":self.pointValue,"account":self.me.userid,"eq":self.me.eq,"price":self.__price['price'],"exchange":self.exchange,"symbol":self.me.master.get(self.symbol,self.symbol),"act":"result"}
+                    _dict = {"point":self.pointValue,"account":self.me.userid,"eq":self.me.eq,"price":self.__price['price'],"exchange":'ctp',"symbol":self.me.master.get(self.symbol,self.symbol),"act":"result"}
                     self.__hold = self.me.corefunc(_dict,self)
                     if self.__hold!=0:self.__last = self.__hold
                 else:
@@ -547,6 +549,12 @@ class MainEngine:
         """订阅合约"""
         self.md.subscribe(str(instrumentid), str(exchangeid))
         self.subedInstrument.add((instrumentid, exchangeid))
+    #----------------------------------------------------------------------
+    def unsubscribe(self, instrumentid, exchangeid):
+        """取消订阅合约"""
+        self.md.unsubscribe(str(instrumentid), str(exchangeid))
+        if (instrumentid, exchangeid) in self.subedInstrument:
+            self.subedInstrument.remove((instrumentid, exchangeid))
     #----------------------------------------------------------------------
     def getAccount(self):
         """查询账户"""

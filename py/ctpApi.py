@@ -182,9 +182,25 @@ class ctpMdApi(MdApi):
     #----------------------------------------------------------------------
     def subscribe(self, instrumentid, exchangeid):
         """订阅合约"""
+        event = Event(type_=EVENT_LOG)
+        log = u'订阅合约: %s %s'%(instrumentid,exchangeid)
+        event.dict_['log'] = log
+        self.__eventEngine.put(event)
         instrument = (instrumentid, exchangeid)
         self.__setSubscribed.add(instrument)
         self.subscribeMarketData(instrumentid)
+
+    #----------------------------------------------------------------------
+    def unsubscribe(self, instrumentid, exchangeid):
+        """取消订阅合约"""
+        event = Event(type_=EVENT_LOG)
+        log = u'取消合约订阅: %s %s'%(instrumentid,exchangeid)
+        event.dict_['log'] = log
+        self.__eventEngine.put(event)
+        instrument = (instrumentid, exchangeid)
+        if instrument in self.__setSubscribed:
+            self.__setSubscribed.remove(instrument)
+        self.unSubscribeMarketData(instrumentid)
 
 
 ########################################################################
