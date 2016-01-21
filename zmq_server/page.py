@@ -12,9 +12,8 @@ from qqmail import *
 from log import *
 import thread
 
-def mathlog(a):return mathclog(a).real
-
 def now():return datetime.datetime.now()
+def mathlog(a):return mathclog(a).real
 
 cache = {}
 cache['pass'] = time.time()+3600*24*7
@@ -68,6 +67,7 @@ def index():
     global cache
     _all = conn.database_names()
     _list = filter(lambda x:'_' in x and x[0]=='k',_all)
+    _raw = filter(lambda x:'_' in x and x[:3]=='raw',_all)
     out = []
     len = request.query.l or cache.get('len','100')
     cache['len'] = len
@@ -77,6 +77,15 @@ def index():
     out.append("<br/>")
     for one in _list:
         out.append('<a href="/list/%s/" target="_blank">%s</a>'%(one,one))
+        out.append("<br/>")
+    out.append("<br/>")
+    out.append("<br/>")
+    out.append("<br/>")
+    out.append("<br/>")
+    out.append("<br/>")
+    for one in _raw:
+        out.append(u'<a href="/delete/%s/" target="_blank">删除 %s 原始tick数据!!!</a>'%(one,one))
+        out.append("<br/>")
     all = '&nbsp;'.join(out)
     return '''<html><head></head><body><br/>%s</body></html>'''%all
 
@@ -102,17 +111,56 @@ def get_symbol(symbol):
     out.append("<br/>")
     for one in _all:
         for tf in _tf:
-            out.append('<a href="/image/%s/%s/%s/" target="_blank">%s[%s]</a>'%(symbol,one,tf,one,tf))
+            out.append('<a href="/image/%s/%s/%s/" target="_blank">%s[%s]</a>'%(symbol,one,tf,tf,one))
         out.append("<br/>")
     out.append("<br/>")
     out.append("<br/>")
     out.append("<br/>")
     out.append("<br/>")
-    out.append("<br/>")
-    out.append("<br/>")
     out.append(u'<a href="/delete/%s/" target="_blank">删除 %s !!!</a>'%(symbol,symbol))
+    out.append("<br/>")
+    out.append("<br/>")
+    _ticks = b.raw_tick()
+    for one in _ticks:
+        out.append(str(one))
+        out.append("<br/>")
+    out.append("<br/>")
     all = '&nbsp;'.join(out)
     return '''<html><head></head><body><br/>%s</body></html>'''%all
+
+@route('/time/')
+def get_time():
+    _day = datetime.datetime.now()
+    _time = _day.hour*100+_day.minute
+    return str(_time)
+
+@route('/tick/:account/:eq/:price/:symbol/:exchange/:point/result/')
+def get_result(account,eq,price,symbol,exchange,point):
+    if not price.replace('.','').isdigit():
+        logit("Error_Price,%s"%price)
+        return '0'
+    _account = account
+    _money = float(eq)
+    _price = float(price)
+    _point = mathlog(_price*(1+mathlog(int(point))))*3000
+    _symbol = symbol
+    _exchange = "ctp"
+    _begin = time.time()
+    if _begin - cache.get(('time',_exchange,_symbol),0)>0.5:
+        b = Base(_exchange,_symbol,conn,allstate)
+        b.account_money(_money)
+        b.new_price(time.time(),_point,_price)
+        _result = b.get_result()
+        logit(str(_result))
+        logit(str(time.time()-_begin))
+        cache[('time',_exchange,_symbol)] = time.time()
+        cache[('rslt',_exchange,_symbol)] = _result
+        return '0'
+        return str(b.get_result().get('result',0))
+    else:
+        return '0'
+        return cache.get(('rslt',_exchange,_symbol),{}).get('result',0)
+
 
 @route('/image/:symbol/:group/:tf/')
 def get_image(symbol,group,tf):

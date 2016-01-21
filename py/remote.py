@@ -11,7 +11,9 @@ def httpfunc(_dict,_som):
     try:
         _q = urlopen(_url,timeout=1000)
         return int(_q.readline())
-    except:
+    except Exception,e:
+        print('http',_url)
+        print('http',e)
         return 0
 
 def passit(a,b):return 0
