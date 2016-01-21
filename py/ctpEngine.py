@@ -159,7 +159,6 @@ class SymbolOrdersManager:
         with self.__lock:
             if self.me.now.hour==14 and self.me.now.minute>=55:
                 self.me.dictProduct[self.productid][self.symbol] = _data['Volume']
-                self.me.set_instrument()
                 if self.symbol in self.me.subedMaster:
                     self.me.unsubscribe(self.symbol,self.exchange)
                     return
@@ -500,6 +499,15 @@ class MainEngine:
                             if _inst!=_instr:self.subedMaster[_instr]=0
                             _pass = False
                 self.masterSubed = _pass
+
+            if self.masterSubed and self.now.minute>56:
+                _all = self.master.items()
+                for _inst,_all in _all:
+                    for _instr,_v in _all.items():
+                        if _inst!=_instr and _instr in self.som:
+                            self.som.pop(_instr)
+                self.masterSubed = False
+                self.me.set_instrument()
 
     def set_ws(self,ws):
         self.websocket = ws
