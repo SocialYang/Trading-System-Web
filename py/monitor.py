@@ -40,6 +40,8 @@ count = 100
 cache = {}
 
 def width_label(c,width):
+    if type(c)==type(.1):
+        c = '%.2f'%c
     s= html.LABEL(c)
     s.style={"display":"inline-block","width":"%dpx"%width}
     return s
