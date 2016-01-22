@@ -14,24 +14,24 @@ from time import sleep
 from eventType import *
 from threading import Lock
 
-def platdict(_key,_value,_out,_pos,_tab):
+def platdict(_key,_value,_out,_pos,_tab,_keys):
     if type(_value)==type({}):
         _out.append(_tab*_pos+_key+" => ")
         for k,v in _value.items():
-            _out = platdict(k,v,_out,_pos+1,_tab)
+            _out = platdict(k,v,_out,_pos+1,_tab,_keys+[k])
     else:
         if type(_value)==type(''):
-            _out.append(u'''%s %s => %s'''%(_tab*_pos,_key,_value))
+            _out.append(u'''%s %s => %s'''%(_tab*_pos,'.'.join(_keys),_value))
         elif  type(_value)==type(u''):
-            _out.append(u'''%s %s => %s'''%(_tab*_pos,_key,_value))
+            _out.append(u'''%s %s => %s'''%(_tab*_pos,'.'.join(_keys),_value))
         elif  type(_value)==type(1.0):
-            _out.append(u'''%s %s => %.5f'''%(_tab*_pos,_key,_value))
+            _out.append(u'''%s %s => %.5f'''%(_tab*_pos,'.'.join(_keys),_value))
         elif  type(_value)==type(1):
-            _out.append(u'''%s %s => %d'''%(_tab*_pos,_key,_value))
+            _out.append(u'''%s %s => %d'''%(_tab*_pos,'.'.join(_keys),_value))
         elif  type(_value)==type(()):
-            _out.append(u'''%s %s => %s %d'''%(_tab*_pos,_key,_value[0],_value[1]))
+            _out.append(u'''%s %s => %s %d'''%(_tab*_pos,'.'.join(_keys),_value[0],_value[1]))
         else:
-            _out.append(u'''%s %s => %s'''%(_tab*_pos,_key,str(type(_value))))
+            _out.append(u'''%s %s => %s'''%(_tab*_pos,'.'.join(_keys),str(type(_value))))
     return _out
 
 cs = set()
@@ -118,8 +118,35 @@ class Bridge:
         except Exception,e:
             print(event.dict_,e)
 
-
 bg = Bridge()
+@route('/bridge/set/<a>/<b>/<c>/')
+def bridge_set(a,b,c):
+    if c not in ['int','str','float']:return 'error type'
+    _d = bg.get_instrument()
+    _l = a.split('.')
+    b = eval(c)(b)
+    _tmp = _d
+    _out = []
+    for one in _l:
+        _out.append(_tmp)
+        if one in _tmp:
+            _tmp = _tmp[one]
+        else:
+            return '%s not in correct place'%one
+    _zip = zip(_l[::-1],_out[::-1])
+    _tmp = b
+    _n = {}
+    for k,d in _zip:
+        d[k] = _tmp
+        _tmp = d
+    bg.set_instrument(_tmp)
+    return str(_tmp)
+
+@route('/bridge/get/<a>/')
+def bridge_get(a):
+    _d = bg.get_instrument()
+    _l = a.split('.')
+    return str(reduce(lambda x,y:x.get(y,{}),_l,_d))
 
 def start_accounts(_acc):
     for k,v in _acc.items():
@@ -155,11 +182,19 @@ start_accounts(get_accounts())
 @get('/all/')
 def get_all():
     _all = bg.get_instrument()
-    _out = platdict('root',_all,[],0,'...')
+    _out = platdict('root',_all,[],0,'...',[])
     _str = '<br/>'.join(_out)
     return u'''<!DOCTYPE html><html>
 <head></head>
 <body>%s</body></html>'''%_str
+
+@get('/account/getinstrument/')
+def account_getinstrument():
+    out = []
+    for k,one in me.items():
+        one.getInstrument()
+        out.append('account %s getInstrument'%k)
+    return '#'.join(out)
 
 @get('/monitor/')
 def monitor():
@@ -181,6 +216,7 @@ def index():
     return '''<!DOCTYPE html><html><head><link rel="stylesheet" href="/css/css.css" /><link rel="shortcut icon" href="/ico/favicon.ico" type="image/x-icon" /><meta charset="utf-8"></script><title>CTP终端</title></head><body><main role="main" class="grid-container"><div class="grid-100 mobile-grid-100"><section class="example-block"><div style="margin:10px;"/>
     <a href="/monitor/" target="_blank">CTP监控界面</a><br/><br/>
     <a href="/settings/" target="_blank">CTP帐户管理</a><br/><br/>
+    <a href="/account/getinstrument/" target="_blank">获取合约信息</a><br/><br/>
     <a href="/all/" target="_blank">储存的合约信息</a><br/><br/>
     </section></div></main></body></html>'''
 
