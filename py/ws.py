@@ -128,15 +128,14 @@ def bridge_set(a,b,c):
     _tmp = _d
     _out = []
     for one in _l:
-        _out.append(_tmp)
+        _out.append((one,_tmp))
         if one in _tmp:
             _tmp = _tmp[one]
         else:
             return '%s not in correct place'%one
-    _zip = zip(_l[::-1],_out[::-1])
     _tmp = b
     _n = {}
-    for k,d in _zip:
+    for k,d in _out[::-1]:
         d[k] = _tmp
         _tmp = d
     bg.set_instrument(_tmp)
