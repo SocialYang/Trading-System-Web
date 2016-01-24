@@ -158,19 +158,22 @@ def set_accounts(_acc):
     _out = {}
     for k,v in _acc.items():
         _out[k] = v
-        _instrument = v['instrument'].split('+')
-        _instrument.sort(reverse=True)
-        if '' in _instrument:
-            _pos = _instrument.index('')
-            _instrument = _instrument[:_pos]
-        _list = []
-        for one in _instrument:
-            if '=' in one:
-                one = filter(lambda x:x in _chars+_CHARS,one)+'='
-                _list.append(one)
-            else:
-                _list.append(one)
-        _out[k]['instrument'] = '+'.join(_list)
+        if '#' in v['instrument']:
+            _out[k]['instrument'] = '#'
+        else:
+            _instrument = v['instrument'].split('+')
+            _instrument.sort(reverse=True)
+            if '' in _instrument:
+                _pos = _instrument.index('')
+                _instrument = _instrument[:_pos]
+            _list = []
+            for one in _instrument:
+                if '=' in one:
+                    one = filter(lambda x:x in _chars+_CHARS,one)+'='
+                    _list.append(one)
+                else:
+                    _list.append(one)
+            _out[k]['instrument'] = '+'.join(_list)
     f['accounts'] = _out
     f.close()
     start_accounts(get_accounts())

@@ -107,7 +107,7 @@ def get_ctp_all(ev):
     newer<= nmd+"密码"+html.BR()
     nmd = html.INPUT(id="instrument")
     nmd.value=""
-    newer<= nmd+"订阅合约(多个合约中间用+分隔,使用主力合约加=,如IF=)"+html.BR()
+    newer<= nmd+"订阅合约(多个合约中间用+分隔,使用主力合约加=,如IF=,#代表所有主力合约)"+html.BR()
     nmd = html.INPUT(id="usezmq")
     nmd.value="0"
     newer<= nmd+"使用自动交易信号(0:不使用 1:使用)"+html.BR()

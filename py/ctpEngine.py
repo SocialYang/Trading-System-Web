@@ -147,7 +147,9 @@ class SymbolOrdersManager:
         _data = event.dict_['data']
         _ask = _data['AskPrice1']
         _bid = _data['BidPrice1']
+        if _ask+_bid==0:return
         _symbol = _data['InstrumentID']
+        if _symbol not in self.me.tickpass:return
         _exchange =  self.data.get("ExchangeID",'')
         self.__price = {"ask":_ask,"bid":_bid,"price":(_ask*_ask+_bid*_bid)/(_ask+_bid)}
         if time()>self.__timecheck:
@@ -157,11 +159,6 @@ class SymbolOrdersManager:
             _time = _now.hour*100+_now.minute
             self.__timepass = [one(_time) for one in self.__timerule].count(True)
         with self.__lock:
-            if self.me.now.hour==14 and self.me.now.minute>=55:
-                self.me.dictProduct[self.productid][self.symbol] = _data['Volume']
-                if self.symbol in self.me.subedMaster:
-                    self.me.unsubscribe(self.symbol,self.exchange)
-                    return
             if self.me.socket:
                 if (self.symbol,self.exchange) not in self.me.subInstrument:
                     self.__hold = 0
@@ -309,6 +306,7 @@ class MainEngine:
 
         self.ee = EventEngine(account)         # 创建事件驱动引擎
         self.bridge = bg
+        self.__lock = Lock()
         self.userid = str(account['userid'])
         self.password = str(account['password'])
         self.brokerid = str(account['brokerid'])
@@ -327,8 +325,9 @@ class MainEngine:
         self.subInstrument = set()
         self.subedInstrument = set()
         self.master = {}    #   记录主力合约对应关系
-        self.subedMaster = {}
         self.masterSubed = False
+        self.subedMaster = {}
+        self.tickpass = set()
         self.now = datetime.now()
         self.socket = None
         self.coreServer = str(account['zmqserver'])
@@ -384,26 +383,41 @@ class MainEngine:
 
         self.md = ctpMdApi(self, self.mdaddress, self.userid, self.password, self.brokerid, plus_path=_plus_path)    # 创建API接口
         self.td = ctpTdApi(self, self.tdaddress, self.userid, self.password, self.brokerid, plus_path=_plus_path)
+
     def get_subscribe(self,_inst):
-        _all = _inst.split('+')
-        _today = date.today()
-        _date = int("%d%d%d"%(_today.year,_today.month,_today.day))
-        for one in _all:
-            if '=' in one:
-                _productid = one[:-1]
-                if _productid in self.dictProduct:
-                    _product = self.dictProduct[_productid]
-                    _productlist = [ (v,k) for k,v in _product.items()]
-                    _productlist.sort(reverse=True)
-                    _instrumentid = _productlist[0][-1]
-                    _exchangeid = self.dictInstrument.get(_instrumentid,{}).get("ExchangeID",'')
-                    self.subInstrument.add((_instrumentid,_exchangeid))
-                    self.master[_instrumentid] = _product
-            else:
-                _instrumentid = one
+        if '#' in _inst:
+            for k,v in self.dictProduct.items():
+                _productid = k
+                _product = self.dictProduct[_productid]
+                _productlist = [ (v,k) for k,v in _product.items()]
+                _productlist.sort(reverse=True)
+                _instrumentid = _productlist[0][-1]
                 _exchangeid = self.dictInstrument.get(_instrumentid,{}).get("ExchangeID",'')
                 self.subInstrument.add((_instrumentid,_exchangeid))
-        print(self.subInstrument)
+                self.master[_productid] = _product
+                self.subedMaster[_instrumentid] = 1
+                self.tickpass.add(_instrumentid)
+        else:
+            _all = _inst.split('+')
+            for one in _all:
+                if '=' in one:
+                    _productid = one[:-1]
+                    if _productid in self.dictProduct:
+                        _product = self.dictProduct[_productid]
+                        _productlist = [ (v,k) for k,v in _product.items()]
+                        _productlist.sort(reverse=True)
+                        _instrumentid = _productlist[0][-1]
+                        _exchangeid = self.dictInstrument.get(_instrumentid,{}).get("ExchangeID",'')
+                        self.subInstrument.add((_instrumentid,_exchangeid))
+                        self.master[_productid] = _product
+                        self.subedMaster[_instrumentid] = _product
+                        self.tickpass.add(_instrumentid)
+                else:
+                    _instrumentid = one
+                    _exchangeid = self.dictInstrument.get(_instrumentid,{}).get("ExchangeID",'')
+                    self.subInstrument.add((_instrumentid,_exchangeid))
+                    self.tickpass.add(_instrumentid)
+            print(self.subInstrument)
     def ready_subscribe(self,event):
         self.__readySubscribe[event.type_] = 1
         if len(self.__readySubscribe) == 2:
@@ -473,6 +487,36 @@ class MainEngine:
         except Exception,e:
             print("ctpEngine.py MainEngine get_som ERROR",e)
             print(event.type_,event.dict_['data'])
+    def get_mastervol(self,event):
+        _data = event.dict_['data']
+        _instrument = _data['InstrumentID']
+        _symbol = self.dictInstrument.get(_instrument,{})
+        if _symbol:
+            if self.subedMaster:
+                _product = _symbol['ProductID']
+                _exchange = _symbol['ExchangeID']
+                with self.__lock:
+                    if _instrument in self.subedMaster:
+                        self.dictProduct[_product][_instrument] = _data['Volume']
+                        self.subedMaster.pop(_instrument)
+                        if self.subedMaster[_instrument] == 0:
+                            self.unsubscribe(_instrument,_exchange)
+            else:
+                event = Event(type_=EVENT_LOG)
+                log = u'主力合约数据获取完毕'
+                event.dict_['log'] = log
+                self.ee.put(event)
+                self.set_instrument()
+                self.ee.unregister(EVENT_TICK,self.get_mastervol)
+                event = Event(type_=EVENT_LOG)
+                log = u'取消合约成交量事件注册'
+                event.dict_['log'] = log
+                self.ee.put(event)
+        else:
+            event = Event(type_=EVENT_LOG)
+            log = u'未发现合约信息:%s'%_instrument
+            event.dict_['log'] = log
+            self.ee.put(event)
 
     def check_timer(self,event):
         if time()>=self.__timer:
@@ -480,34 +524,23 @@ class MainEngine:
             event = Event(type_=EVENT_TIMER)
             self.ee.put(event)
 
-            if not self.masterSubed and self.now.hour==14 and self.now.minute>=55:
-                _all = self.master.items()
+            if not self.masterSubed and self.master and self.now.hour==14 and self.now.minute>=55:
+                self.masterSubed = True
+                self.ee.register(EVENT_TICK,self.get_mastervol)
                 event = Event(type_=EVENT_LOG)
-                log = u'订阅主力合约其他合约'
+                log = u'注册合约成交量事件'
                 event.dict_['log'] = log
                 self.ee.put(event)
-                _pass = True
-                for _inst,_all in _all:
-                    for _instr,_v in _all.items():
-                        _exchangeid = self.dictInstrument.get(_instr,{}).get("ExchangeID",'')
-                        if _instr not in self.som:
-                            event = Event(type_=EVENT_LOG)
-                            log = u'订阅[%s]以分析主力合约持仓'%_instr
-                            event.dict_['log'] = log
-                            self.ee.put(event)
-                            self.subscribe(_instr,_exchangeid)
-                            if _inst!=_instr:self.subedMaster[_instr]=0
-                            _pass = False
-                self.masterSubed = _pass
 
-            if self.masterSubed and self.now.minute>56:
-                _all = self.master.items()
-                for _inst,_all in _all:
-                    for _instr,_v in _all.items():
-                        if _inst!=_instr and _instr in self.som:
-                            self.som.pop(_instr)
-                self.set_instrument()
-
+            if self.masterSubed and self.master:
+                with self.__lock:
+                    _key = self.master.keys()[0]
+                    _instruments = self.master.pop(_key)
+                    for _instrument in _instruments:
+                        _exchange = self.dictInstrument.get(_instrument,{}).get("ExchangeID",'')
+                        self.subscribe(_instrument,_exchange)
+                        if _instrument not in self.subedMaster:
+                            self.subedMaster[_instrument] = 0
     def set_ws(self,ws):
         self.websocket = ws
     def websocket_send(self,event):
