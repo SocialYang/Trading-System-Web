@@ -410,7 +410,7 @@ class MainEngine:
                         _exchangeid = self.dictInstrument.get(_instrumentid,{}).get("ExchangeID",'')
                         self.subInstrument.add((_instrumentid,_exchangeid))
                         self.master[_productid] = _product
-                        self.subedMaster[_instrumentid] = _product
+                        self.subedMaster[_instrumentid] = 1
                         self.tickpass.add(_instrumentid)
                 else:
                     _instrumentid = one
@@ -422,7 +422,7 @@ class MainEngine:
         self.__readySubscribe[event.type_] = 1
         if len(self.__readySubscribe) == 2:
             for one in self.subInstrument:
-                if one[0] in self.master:
+                if one[0] in self.subedMaster:
                     event = Event(type_=EVENT_LOG)
                     log = u'订阅主力合约:%s[%s]'%(one[0],self.dictInstrument[one[0]]['InstrumentName'])
                     event.dict_['log'] = log
@@ -450,6 +450,7 @@ class MainEngine:
         try:
             symbol = event.dict_['data']['InstrumentID']
             if symbol:
+                if symbol not in self.tickpass:return
                 if symbol in self.som:
                     return self.som[symbol]
                 else:
