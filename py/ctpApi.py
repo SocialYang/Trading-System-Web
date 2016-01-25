@@ -459,10 +459,13 @@ class ctpTdApi(TdApi):
         （由于耗时过长目前使用其他进程读取）
         """
         if error['ErrorID'] == 0:
-            event = Event(type_=EVENT_INSTRUMENT)
-            event.dict_['data'] = utf_dict(data)
-            event.dict_['last'] = last
-            self.__eventEngine.put(event)
+            if data['InstrumentID'][-1].isdigit():
+                event = Event(type_=EVENT_INSTRUMENT)
+                event.dict_['data'] = utf_dict(data)
+                event.dict_['last'] = last
+                self.__eventEngine.put(event)
+            else:
+                print(u'ctpApi.mdapi.onRspQryInstrument:非常规合约 %s'%data['InstrumentID'])
         else:
             event = Event(type_=EVENT_LOG)
             log = u'合约投资者回报，错误代码：' + unicode(error['ErrorID']) + u',' + u'错误信息：' + error['ErrorMsg'].decode('gbk')

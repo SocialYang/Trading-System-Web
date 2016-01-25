@@ -389,14 +389,15 @@ class MainEngine:
             for k,v in self.dictProduct.items():
                 _productid = k
                 _product = self.dictProduct[_productid]
-                _productlist = [ (v,k) for k,v in _product.items()]
-                _productlist.sort(reverse=True)
-                _instrumentid = _productlist[0][-1]
-                _exchangeid = self.dictInstrument.get(_instrumentid,{}).get("ExchangeID",'')
-                self.subInstrument.add((_instrumentid,_exchangeid))
-                self.master[_productid] = _product
-                self.subedMaster[_instrumentid] = 1
-                self.tickpass.add(_instrumentid)
+                if _product:
+                    _productlist = [ (v,k) for k,v in _product.items()]
+                    _productlist.sort(reverse=True)
+                    _instrumentid = _productlist[0][-1]
+                    _exchangeid = self.dictInstrument.get(_instrumentid,{}).get("ExchangeID",'')
+                    self.subInstrument.add((_instrumentid,_exchangeid))
+                    self.master[_productid] = _product
+                    self.subedMaster[_instrumentid] = 1
+                    self.tickpass.add(_instrumentid)
         else:
             _all = _inst.split('+')
             for one in _all:
@@ -493,15 +494,15 @@ class MainEngine:
         _instrument = _data['InstrumentID']
         _symbol = self.dictInstrument.get(_instrument,{})
         if _symbol:
-            if self.subedMaster:
+            if self.subedMaster and self.now.hour==14 and self.now.minute<58:
                 _product = _symbol['ProductID']
                 _exchange = _symbol['ExchangeID']
                 with self.__lock:
                     if _instrument in self.subedMaster:
                         self.dictProduct[_product][_instrument] = _data['Volume']
-                        self.subedMaster.pop(_instrument)
                         if self.subedMaster[_instrument] == 0:
                             self.unsubscribe(_instrument,_exchange)
+                        self.subedMaster.pop(_instrument)
             else:
                 event = Event(type_=EVENT_LOG)
                 log = u'主力合约数据获取完毕'
@@ -525,7 +526,7 @@ class MainEngine:
             event = Event(type_=EVENT_TIMER)
             self.ee.put(event)
 
-            if not self.masterSubed and self.master and self.now.hour==14 and self.now.minute>=55:
+            if not self.masterSubed and self.master and self.now.hour==14 and self.now.minute>=50:
                 self.masterSubed = True
                 self.ee.register(EVENT_TICK,self.get_mastervol)
                 event = Event(type_=EVENT_LOG)

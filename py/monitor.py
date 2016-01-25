@@ -137,7 +137,7 @@ def event_tick(_msg):
     _content += width_label("叫买1",50)+width_label(_data["BidPrice1"],50)+width_label(_data["BidVolume1"],50)
     _content += width_label("最新价",40)
     _content += width_label(_data["LastPrice"],50)
-    _content += width_label("持仓量",40)
+    _content += width_label("成交量",40)
     _content += width_label(_data["Volume"],50)
     _content += width_label(_data["UpdateTime"],50)
     some = html.DIV(_content,id=_id)
