@@ -11,6 +11,7 @@ EVENT_LOG = 'eLog'                      # 日志事件，通常使用某个监�
 EVENT_TDLOGIN = '_eTdLogin'                  # 交易服务器登录成功事件
 EVENT_MDLOGIN = '_eMdLogin'                  # 交易服务器登录成功事件
 
+EVENT_TICK_CLEAR = 'eTickClear'
 EVENT_TICK = 'eTick'                        # 行情推送事件
 EVENT_TICK_JUST = 'eTick.'                        # 行情推送事件
 
@@ -140,6 +141,7 @@ def event_tick(_msg):
     _content += width_label("成交量",40)
     _content += width_label(_data["Volume"],50)
     _content += width_label(_data["UpdateTime"],50)
+    _content += width_label(_msg["_qsize_"],10)
     some = html.DIV(_content,id=_id)
     some.style={"text-align":"left"}
     Ticks.add(_id)
@@ -147,6 +149,16 @@ def event_tick(_msg):
     _doc.clear()
     for one in Ticks:
         _doc <= TickDict[one]
+
+def event_tickclear(_msg):
+    global Ticks
+    global TickDict
+    _data = _msg['data']
+    _id = "tick_{}".format(_data['InstrumentID'])
+    if _id in Ticks:
+        Ticks.remove(_id)
+    if _id in TickDict:
+        TickDict.pop(_id)
 
 PosAccount = set()
 PosInst = set()
@@ -227,6 +239,7 @@ funcs = {
             EVENT_ACCOUNT:event_account,
             EVENT_POSIALL:event_position,
             EVENT_PRODUCT:event_product,
+            EVENT_TICK_CLEAR:event_tickclear,
     }
 
 def ws_msg(ev):

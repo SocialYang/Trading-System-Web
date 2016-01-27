@@ -386,10 +386,20 @@ class MainEngine:
 
     def get_subscribe(self,_inst):
         if '#' in _inst:
-            for k,v in self.dictProduct.items():
-                _productid = k
-                _product = self.dictProduct[_productid]
-                if _product:
+            _instlist = [ (v['_vol_'],k) for k,v in self.dictInstrument.items()]
+            _instlist.sort(reverse=True)
+            _only = set()
+            for v,_instrumentid in _instlist[:10]:
+                _product = self.dictInstrument[_instrumentid]['ProductID']
+                if _product not in _only:
+                    _exchangeid = self.dictInstrument.get(_instrumentid,{}).get("ExchangeID",'')
+                    self.subInstrument.add((_instrumentid,_exchangeid))
+                    self.subedMaster[_instrumentid] = 1
+                    self.tickpass.add(_instrumentid)
+                    _only.add(_product)
+            for _productid in ['IF','IH','IC']:
+                if _productid in self.dictProduct and _productid not in _only:
+                    _product = self.dictProduct[_productid]
                     _productlist = [ (v,k) for k,v in _product.items()]
                     _productlist.sort(reverse=True)
                     _instrumentid = _productlist[0][-1]
@@ -398,6 +408,9 @@ class MainEngine:
                     self.master[_productid] = _product
                     self.subedMaster[_instrumentid] = 1
                     self.tickpass.add(_instrumentid)
+            for _productid,_product in self.dictProduct.items():
+                self.master[_productid] = _product
+
         else:
             _all = _inst.split('+')
             for one in _all:
@@ -494,13 +507,16 @@ class MainEngine:
         _instrument = _data['InstrumentID']
         _symbol = self.dictInstrument.get(_instrument,{})
         if _symbol:
-            if self.subedMaster and self.now.hour==14 and self.now.minute<58:
+            if self.subedMaster:
                 _product = _symbol['ProductID']
                 _exchange = _symbol['ExchangeID']
                 with self.__lock:
                     if _instrument in self.subedMaster:
                         self.dictProduct[_product][_instrument] = _data['Volume']
-                        if self.subedMaster[_instrument] == 0:
+                        _p = self.dictInstrument.get(_instrument,{}).get('VolumeMultiple',0)
+                        self.dictInstrument[_instrument]['_vol_'] = _data['Volume']*_p
+                        self.set_instrument()
+                        if _instrument not in self.tickpass:
                             self.unsubscribe(_instrument,_exchange)
                         self.subedMaster.pop(_instrument)
             else:
@@ -508,7 +524,6 @@ class MainEngine:
                 log = u'主力合约数据获取完毕'
                 event.dict_['log'] = log
                 self.ee.put(event)
-                self.set_instrument()
                 self.ee.unregister(EVENT_TICK,self.get_mastervol)
                 event = Event(type_=EVENT_LOG)
                 log = u'取消合约成交量事件注册'

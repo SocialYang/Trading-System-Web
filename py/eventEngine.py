@@ -27,7 +27,7 @@ class EventEngine:
         """引擎运行"""
         while self.__active == True:
             try:
-                event = self.__queue.get(block = True, timeout = 0.05)  # 获取事件的阻塞时间设为0.05秒
+                event = self.__queue.get(block = True, timeout = 5)  # 获取事件的阻塞时间设为5秒
                 self.__process(event)
             except Empty:
                 pass
@@ -95,6 +95,7 @@ class EventEngine:
         """向事件队列中存入事件"""
 
         event.dict_['_type_'] = event.type_
+        event.dict_['_qsize_'] = self.__queue.qsize()
         event.dict_['_account_'] = self.__account.get('userid','NONE_USERID')
 
         self.__queue.put(event)

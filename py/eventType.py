@@ -5,7 +5,7 @@ EVENT_LOG = 'eLog'                      # 日志事件，通常使用某个监�
 
 EVENT_TDLOGIN = '_eTdLogin'                  # 交易服务器登录成功事件
 EVENT_MDLOGIN = '_eMdLogin'                  # 交易服务器登录成功事件
-
+EVENT_TICK_CLEAR = 'eTickClear'
 EVENT_TICK = 'eTick'                        # 行情推送事件
 EVENT_TICK_JUST = 'eTick.'                        # 行情推送事件
 

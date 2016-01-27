@@ -202,6 +202,10 @@ class ctpMdApi(MdApi):
             self.__setSubscribed.remove(instrument)
         self.unSubscribeMarketData(instrumentid)
 
+        event = Event(type_=EVENT_TICK_CLEAR)
+        event.dict_['InstrumentID'] = instrumentid
+        self.__eventEngine.put(event)
+
 
 ########################################################################
 class ctpTdApi(TdApi):

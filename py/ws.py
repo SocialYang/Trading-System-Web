@@ -111,12 +111,9 @@ class Bridge:
             if event.type_ == EVENT_LOG:
                 print(event.dict_['log'])
             for _ws in cs:
-                try:
-                    _ws.send(_data)
-                except Exception,e:
-                    print(_data,e)
-        except Exception,e:
-            print(event.dict_,e)
+                _ws.send(_data)
+        finally:
+            pass
 
 bg = Bridge()
 @route('/bridge/set/<a>/<b>/<c>/')
@@ -180,6 +177,16 @@ def set_accounts(_acc):
 
 print(u'可用地址: '+' '.join(get_server_ip()))
 start_accounts(get_accounts())
+
+@get('/top/<n>/')
+def get_top(n):
+    _all = bg.get_instrument()
+    _out = [(v.get('_vol_',0),k) for k,v in _all['instrument'].items()]
+    _out.sort(reverse=True)
+    _str = '<br/>'.join(map(str,_out[:int(n)]))
+    return u'''<!DOCTYPE html><html>
+<head></head>
+<body>%s</body></html>'''%_str
 
 @get('/all/')
 def get_all():
