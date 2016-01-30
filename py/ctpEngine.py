@@ -389,7 +389,7 @@ class MainEngine:
 
     def get_subscribe(self,_inst):
         if '#' in _inst:
-            _instlist = [ (v['_vol_'],k) for k,v in self.dictInstrument.items()]
+            _instlist = [ (v.get('_vol_',0),k) for k,v in self.dictInstrument.items()]
             _instlist.sort(reverse=True)
             _only = set()
             for v,_instrumentid in _instlist[:10]:
