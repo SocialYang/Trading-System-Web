@@ -29,6 +29,7 @@ class SymbolOrdersManager:
         self.__stlist = set()
         self.__orders = {}
         self.__hold = 0
+        self.__signal = 0
         self.__last = 0
         self.__timecheck = 0
         self.__timepass = 0
@@ -226,48 +227,50 @@ class SymbolOrdersManager:
 
                     self.__status[_pass] = _old
 
-                if self.__hold==0:
-                    if long_st.get(_YDPOSITIONDATE_,0)>0:
-                        self.closePosition(1,long_st[_YDPOSITIONDATE_])
-                    if long_st.get(_TODAYPOSITIONDATE_,0)>0:
-                        if self.productid in ['IF','IH','IC']:
-                            self.closeTodayPosition(1,long_st[_TODAYPOSITIONDATE_])
-                        else:
-                            self.closePosition(1,long_st[_TODAYPOSITIONDATE_])
-                    if short_st.get(_YDPOSITIONDATE_,0)>0:
-                        self.closePosition(-1,short_st[_YDPOSITIONDATE_])
-                    if short_st.get(_TODAYPOSITIONDATE_,0)>0:
-                        if self.productid in ['IF','IH','IC']:
-                            self.closeTodayPosition(-1,short_st[_TODAYPOSITIONDATE_])
-                        else:
-                            self.closePosition(-1,short_st[_TODAYPOSITIONDATE_])
-                    self.__status = {}
-                    if self.__last != self.__hold:
-                        self.__last = self.__hold
-                        for _key in ['2','3']:
-                            _dict = {}
-                            _dict['InstrumentID'] = self.symbol
-                            _dict['PosiDirection'] = _key
-                            _dict['TodayPosition'] = 0
-                            _dict['YdPosition'] = 0
-                            _dict['Position'] = 0
-                            event = Event(type_=EVENT_POSIALL)
-                            event.dict_['data'] = _dict
-                            self.me.ee.put(event)
-                elif self.__hold>0:
-                    _todo = abs(self.__hold)
-                    _pass = _long
-                    _reverse = _short
-                    d_pass = 1
-                    d_reverse = -1
-                    do_it(_todo,_pass,_reverse,d_pass,d_reverse)
-                else:
-                    _todo = abs(self.__hold)
-                    _pass = _short
-                    _reverse = _long
-                    d_pass = -1
-                    d_reverse = 1
-                    do_it(_todo,_pass,_reverse,d_pass,d_reverse)
+                if self.__signal!=self.__hold:
+                    self.__signal = self.__hold
+                    if self.__hold==0:
+                        if long_st.get(_YDPOSITIONDATE_,0)>0:
+                            self.closePosition(1,long_st[_YDPOSITIONDATE_])
+                        if long_st.get(_TODAYPOSITIONDATE_,0)>0:
+                            if self.productid in ['IF','IH','IC']:
+                                self.closeTodayPosition(1,long_st[_TODAYPOSITIONDATE_])
+                            else:
+                                self.closePosition(1,long_st[_TODAYPOSITIONDATE_])
+                        if short_st.get(_YDPOSITIONDATE_,0)>0:
+                            self.closePosition(-1,short_st[_YDPOSITIONDATE_])
+                        if short_st.get(_TODAYPOSITIONDATE_,0)>0:
+                            if self.productid in ['IF','IH','IC']:
+                                self.closeTodayPosition(-1,short_st[_TODAYPOSITIONDATE_])
+                            else:
+                                self.closePosition(-1,short_st[_TODAYPOSITIONDATE_])
+                        self.__status = {}
+                        if self.__last != self.__hold:
+                            self.__last = self.__hold
+                            for _key in ['2','3']:
+                                _dict = {}
+                                _dict['InstrumentID'] = self.symbol
+                                _dict['PosiDirection'] = _key
+                                _dict['TodayPosition'] = 0
+                                _dict['YdPosition'] = 0
+                                _dict['Position'] = 0
+                                event = Event(type_=EVENT_POSIALL)
+                                event.dict_['data'] = _dict
+                                self.me.ee.put(event)
+                    elif self.__hold>0:
+                        _todo = abs(self.__hold)
+                        _pass = _long
+                        _reverse = _short
+                        d_pass = 1
+                        d_reverse = -1
+                        do_it(_todo,_pass,_reverse,d_pass,d_reverse)
+                    elif self.__hold<0:
+                        _todo = abs(self.__hold)
+                        _pass = _short
+                        _reverse = _long
+                        d_pass = -1
+                        d_reverse = 1
+                        do_it(_todo,_pass,_reverse,d_pass,d_reverse)
 
 #                print(self.symbol,self.__status,"AFTER",self.__hold)
     def onposi(self,event):#pass
