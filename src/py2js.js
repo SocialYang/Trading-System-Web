@@ -404,9 +404,9 @@ function $AssertCtx(context){
     }
 }
 
-function $AssignCtx(context, check_unbound){
+function $AssignCtx(context){ //, check_unbound){
     /*
-    Context for the assignment operator "="
+    Class for the assignment operator "="
     context is the left operand of assignment
     check_unbound is used to check unbound local variables
     This check is done when the AssignCtx object is created, but must be
@@ -419,7 +419,7 @@ function $AssignCtx(context, check_unbound){
         ctx = ctx.parent
     }
     
-    check_unbound = check_unbound === undefined
+    //check_unbound = check_unbound === undefined
     
     this.type = 'assign'
     // replace parent by "this" in parent tree
@@ -837,6 +837,7 @@ function $AugmentedAssignCtx(context, op){
     this.toString = function(){return '(augm assign) '+this.tree}
 
     this.transform = function(node,rank){
+        
         var func = '__'+$operators[op]+'__'
 
         var offset=0, parent=node.parent
@@ -849,6 +850,26 @@ function $AugmentedAssignCtx(context, op){
             this.tree[0].tree[0].type=='id')
 
         if(left_is_id){
+            // Set attribute "augm_assign" of $IdCtx instance, so that
+            // the id will not be resolved with $B.$check_undef()
+            this.tree[0].tree[0].augm_assign = true
+            
+            // If left part is an id we must check that it is defined, otherwise
+            // raise NameError
+            // Example :
+            // 
+            // if False:
+            //     a = 0
+            // a += 1
+
+            // For performance reasons, this is only implemented in debug mode
+            if($B.debug>0){
+                var check_node = $NodeJS('if('+this.tree[0].to_js()+
+                    '===undefined){throw NameError("name \''+
+                    this.tree[0].tree[0].value+'\' is not defined")}')
+                node.parent.insert(rank, check_node)
+                offset++
+            }
             var left_id = this.tree[0].tree[0].value,
                 was_bound = $B.bound[this.scope.id][left_id]!==undefined,
                 left_id_unbound = this.tree[0].tree[0].unbound
@@ -3237,15 +3258,6 @@ function $IdCtx(context,value){
         this.found = found
         if(this.nonlocal && found[0]===innermost){found.shift()}
 
-        /*
-        if(val=='axd'){
-            console.log(val,'bound in')
-            for(var i=0;i<found.length;i++){
-                console.log(i,found[i].id)
-            }
-        }
-        */
-
         if(found.length>0){
             // If name is not in the left part of an assignment, 
             // and it is bound in the current block but not yet bound when the
@@ -3275,14 +3287,7 @@ function $IdCtx(context,value){
                 }
             }
             if(found.length>1 && found[0].context){
-                if(val=="axd"){
-                    console.log(val, found)
-                    if(!this.bound){
-                        if(locs[val]===undefined){
-                            return '$B.$search("'+val+'")'
-                        }
-                    }
-                }
+
                 if(found[0].context.tree[0].type=='class' && !this.bound){
                     var ns0='$locals_'+found[0].id.replace(/\./g,'_'),
                         ns1='$locals_'+found[1].id.replace(/\./g,'_'),
@@ -3337,32 +3342,45 @@ function $IdCtx(context,value){
                         this.is_builtin = true
                     }
                 }else if(scope.id==scope.module){
-                    if(!this.bound && scope===innermost && this.env[val]===undefined){
-                        var locs = $get_node(this).locals || {}
-                        if(locs[val]===undefined){
-                            // Name is bound in scope, but after the current node
-                            // If it is a builtin name, use the builtin
-                            // Cf issue #311
-                            if(found.length>1 && found[1].id == '__builtins__'){
-                                this.is_builtin = true
-                                return val+$to_js(this.tree,'')
+                    if(this.bound || this.augm_assign){
+                        val = scope_ns+'["'+val+'"]'
+                    }else{
+                        if(scope===innermost && this.env[val]===undefined){
+                            var locs = $get_node(this).locals || {}
+                            if(locs[val]===undefined){
+                                // Name is bound in scope, but after the current node
+                                // If it is a builtin name, use the builtin
+                                // Cf issue #311
+                                if(found.length>1 && found[1].id == '__builtins__'){
+                                    this.is_builtin = true
+                                    return val+$to_js(this.tree,'')
+                                }
                             }
+                            return '$B.$search("'+val+'")'
+                        }else{ // if(scope!==innermost){
+                            // If name is referenced in an upper block, it may be
+                            // still undefined, cf. issue #362
+                            val = '$B.$check_def("'+val+'",'+scope_ns+'["'+val+'"])'
+                        //}else{
+                        //    val = scope_ns+'["'+val+'"]'
                         }
-                        return '$B.$search("'+val+'")'
                     }
-                    val = scope_ns+'["'+val+'"]'
                 }else{
                     val = scope_ns+'["'+val+'"]'
                 }
             }else if(scope===innermost){
                 if($B._globals[scope.id] && $B._globals[scope.id][val]){
                     val = global_ns+'["'+val+'"]'
+                }else if(!this.bound && !this.augm_assign){
+                    val = '$B.$check_def_local("'+val+'",$locals["'+val+'"])'
                 }else{
                     val = '$locals["'+val+'"]'
                 }
-            }else{
+            }else if(!this.bound && !this.augm_assign){
                 // name was found between innermost and the global of builtins
                 // namespace
+                val = '$B.$check_def_free("'+val+'",'+scope_ns+'["'+val+'"])'
+            }else{
                 val = scope_ns+'["'+val+'"]'
             }
             return val+$to_js(this.tree,'')
@@ -6761,10 +6779,9 @@ function $transition(context,token){
     } // switch(context.type)
 }
 
-$B.forbidden = ['super',
-    'case','catch','constructor','Date','delete',
-    'default','Error','history','function','location','Math',
-    'new','null','Number','RegExp','this','throw','var',
+$B.forbidden = ['case','catch','constructor','Date','delete',
+    'default','enum','extends','Error','history','function','location',
+    'Math','new','null','Number','RegExp','super','this','throw','var',
     'toString']
 
 var s_escaped = 'abfnrtvxuU"'+"'"+'\\', is_escaped={}
@@ -6791,16 +6808,17 @@ function $tokenize(src,module,locals_id,parent_block_id,line_info){
     var $indented = ['class','def','for','condition','single_kw','try','except','with']
     // from https://developer.mozilla.org/en-US/docs/JavaScript/Reference/Reserved_Words
 
-    var punctuation = {',':0,':':0} //,';':0}
-    var int_pattern = new RegExp("^\\d+(j|J)?")
-    var float_pattern1 = new RegExp("^\\d+\\.\\d*([eE][+-]?\\d+)?(j|J)?")
-    var float_pattern2 = new RegExp("^\\d+([eE][+-]?\\d+)(j|J)?")
-    var hex_pattern = new RegExp("^0[xX]([0-9a-fA-F]+)")
-    var octal_pattern = new RegExp("^0[oO]([0-7]+)")
-    var binary_pattern = new RegExp("^0[bB]([01]+)")
-    var id_pattern = new RegExp("[\\$_a-zA-Z]\\w*")
-    var qesc = new RegExp('"',"g") // escape double quotes
-    var sqesc = new RegExp("'","g") // escape single quotes
+    var punctuation = {',':0,':':0} //,';':0},
+        int_pattern = new RegExp("^\\d+(j|J)?"),
+        float_pattern1 = new RegExp("^\\d+\\.\\d*([eE][+-]?\\d+)?(j|J)?"),
+        float_pattern2 = new RegExp("^\\d+([eE][+-]?\\d+)(j|J)?"),
+        hex_pattern = new RegExp("^0[xX]([0-9a-fA-F]+)"),
+        octal_pattern = new RegExp("^0[oO]([0-7]+)"),
+        binary_pattern = new RegExp("^0[bB]([01]+)"),
+        id_pattern = new RegExp("[\\$_a-zA-Z]\\w*"),
+        qesc = new RegExp('"',"g"), // escape double quotes
+        sqesc = new RegExp("'","g"), // escape single quotes
+        dummy = {} // used to test valid identifiers
     
     var context = null
     var root = new $Node('module')
@@ -6995,14 +7013,27 @@ function $tokenize(src,module,locals_id,parent_block_id,line_info){
             continue
         }
         // identifier ?
-        if(name==""){
-            if($B.re_XID_Start.exec(car)){
-                name=car // identifier start
-                pos++
-                while(pos<src.length && $B.re_XID_Continue.exec(src.charAt(pos))){
-                    name+=src.charAt(pos)
-                    pos++
+        if(name=="" && car!='$'){
+            try{
+                eval("dummy."+car+"=0")
+                var idpos = pos+1
+                while(idpos<src.length){
+                    var idcar = src.charAt(idpos)
+                    if(idcar==' '||idcar=='\n'||idcar==';'||idcar=='$'){
+                        name = src.substring(pos, idpos)
+                        break
+                    }
+                    try{
+                        eval("dummy."+src.substring(pos, idpos+1))
+                        idpos++
+                    }catch(err){
+                        name = src.substring(pos, idpos)
+                        break
+                    }
                 }
+            }catch(err){}
+            if(name){
+                pos += name.length
                 if(kwdict.indexOf(name)>-1){
                     $pos = pos-name.length
                     if(unsupported.indexOf(name)>-1){
@@ -7437,6 +7468,7 @@ function run_script(script){
 
         var $root = $B.py2js(script.src,script.name,script.name,'__builtins__')
         var $js = $root.to_js()
+        if($B.debug>1){console.log($js)}
         // Run resulting Javascript
         eval($js)
         $B.imported[script.name] = $locals
@@ -7459,8 +7491,11 @@ function run_script(script){
         }
 
         // Print the error traceback on the standard error stream
-        var $trace = _b_.getattr($err,'info')+'\n'+$err.__name__+
-            ': ' +$err.args
+        var name = $err.__name__
+        var $trace = _b_.getattr($err,'info')+'\n'+name+': '
+        if(name=='SyntaxError' || name=='IndentationError'){
+            $trace += $err.args[0]
+        }else{$trace += $err.args}
         try{
             _b_.getattr($B.stderr,'write')($trace)
         }catch(print_exc_err){

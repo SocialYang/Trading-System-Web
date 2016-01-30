@@ -432,14 +432,14 @@ DOMNodeDict.__getattribute__ = function(self,attr){
         return DOMNodeDict[attr](self)
 
       case 'height':
-      //case 'left':
-      //case 'top':
+      case 'left':
+      case 'top':
       case 'width':
         if(self.elt instanceof SVGElement){
             return self.elt.getAttributeNS(null, attr)
         }
-        try{return _b_.int($getPosition(self.elt)[attr])}
-        catch(err){return _b_.getattr(self.elt, attr)}      
+        return DOMNodeDict[attr].__get__(self)
+        break
       case 'clear':
       case 'remove':
         return function(){DOMNodeDict[attr](self,arguments[0])}
@@ -515,7 +515,7 @@ DOMNodeDict.__getattribute__ = function(self,attr){
         }
         if(attr=='options') return $Options(self.elt)
         if(attr=='style') return $Style(self.elt[attr])
-        return $B.$JS2Py(self.elt[attr])
+        return $B.JSObject(self.elt[attr])
     }
     return $ObjectDict.__getattribute__(self,attr)
 }
@@ -626,7 +626,8 @@ DOMNodeDict.__setattr__ = function(self,attr,value){
           return DOMNodeDict['set_'+attr](self,value)
         }
         var attr1 = attr.replace('_','-').toLowerCase()
-        if(self.elt instanceof SVGElement){
+        if(self.elt instanceof SVGElement && 
+            self.elt.getAttributeNS(null, attr1)!==null){
             self.elt.setAttributeNS(null, attr1, value)
             return
         }
@@ -644,6 +645,24 @@ DOMNodeDict.__setattr__ = function(self,attr,value){
 }
 
 DOMNodeDict.__setitem__ = function(self,key,value){self.elt.childNodes[key]=value}
+
+DOMNodeDict.abs_left = {
+    __get__: function(self){
+        return $getPosition(self.elt).left
+    },
+    __set__: function(){
+        throw _b_.AttributeError("'DOMNode' objectattribute 'abs_left' is read-only")
+    }
+}
+
+DOMNodeDict.abs_top = {
+    __get__: function(self){
+        return $getPosition(self.elt).top
+    },
+    __set__: function(){
+        throw _b_.AttributeError("'DOMNode' objectattribute 'abs_top' is read-only")
+    }
+}
 
 DOMNodeDict.bind = function(self,event){
     // bind functions to the event (event = "click", "mouseover" etc.)
@@ -845,11 +864,40 @@ DOMNodeDict.getSelectionRange = function(self){ // for TEXTAREA
     }
 }
 
+DOMNodeDict.height = {
+    '__get__': function(self){
+        // Special case for Canvas
+        // http://stackoverflow.com/questions/4938346/canvas-width-and-height-in-html5
+        if(self.elt.tagName=='CANVAS'){return self.elt.height}
+        var res = parseInt(self.elt.style.height)
+        if(isNaN(res)){
+            return self.elt.offsetHeight
+            //throw _b_.AttributeError("node has no attribute 'height'")
+        }
+        return res
+    },
+    '__set__': function(obj, self, value){
+        if(self.elt.tagName=='CANVAS'){self.elt.height=value}
+        self.elt.style.height = value+'px'
+    }
+}
+
 DOMNodeDict.html = function(self){return self.elt.innerHTML}
 
 DOMNodeDict.id = function(self){
     if(self.elt.id !== undefined) return self.elt.id
     return None
+}
+
+DOMNodeDict.inside = function(self, other){
+    // Test if a node is inside another node
+    other = other.elt
+    var elt = self.elt
+    while(true){
+        if(other===elt){return true}
+        elt = elt.parentElement
+        if(!elt){return false}
+    }
 }
 
 DOMNodeDict.options = function(self){ // for SELECT tag
@@ -863,9 +911,13 @@ DOMNodeDict.parent = function(self){
 
 DOMNodeDict.left = {
     '__get__': function(self){
-        return parseInt(self.elt.style.left)
+        var res = parseInt(self.elt.style.left)
+        if(isNaN(res)){
+            throw _b_.AttributeError("node has no attribute 'left'")
+        }
+        return res
     },
-    '__set__': function(self, value){
+    '__set__': function(obj, self, value){
         self.elt.style.left = value+'px'
     }
 }
@@ -904,7 +956,7 @@ DOMNodeDict.top = {
         }
         return res
     },
-    '__set__': function(self, value){
+    '__set__': function(obj, self, value){
         self.elt.style.top = value+'px'
     }
 }
@@ -992,10 +1044,18 @@ DOMNodeDict.trigger = function (self, etype){
 DOMNodeDict.unbind = function(self,event){
     // unbind functions from the event (event = "click", "mouseover" etc.)
     // if no function is specified, remove all callback functions
+    // If no event is specified, remove all callbacks for all events
     var _id
     if(self.elt.nodeType==9){_id=0}else{_id=self.elt.$brython_id}
     if(!_b_.dict.$dict.__contains__($B.events, _id)) return
     var item = _b_.dict.$dict.__getitem__($B.events, _id)
+    
+    if(event===undefined){
+        var events = _b_.list(_b_.dict.$dict.keys(item))
+        for(var i=0;i<events.length;i++){DOMNodeDict.unbind(self, events[i])}
+        return
+    }
+    
     if(!_b_.dict.$dict.__contains__(item, event)) return
 
     var events = _b_.dict.$dict.__getitem__(item, event)
@@ -1032,6 +1092,28 @@ DOMNodeDict.unbind = function(self,event){
 }
 
 DOMNodeDict.value = function(self){return self.elt.value}
+
+DOMNodeDict.width = {
+    '__get__': function(self){
+        // Special case for Canvas
+        // http://stackoverflow.com/questions/4938346/canvas-width-and-height-in-html5
+        if(self.elt.tagName=='CANVAS'){return self.elt.width}
+        var res = parseInt(self.elt.style.width)
+        if(isNaN(res)){
+            //throw _b_.AttributeError("node has no attribute 'width'")
+            return self.elt.offsetWidth
+        }
+        return res
+    },
+    '__set__': function(obj, self, value){
+        if(self.elt.tagName=='CANVAS'){
+            // for CANVAS, we must set both elt.widdth and elt.style.width
+            // to the same value, else content is scaled in the browser
+            self.elt.width=value
+        }
+        self.elt.style.width = value+'px'
+    }
+}
 
 // return query string as an object with methods to access keys and values
 // same interface as cgi.FieldStorage, with getvalue / getlist / getfirst
