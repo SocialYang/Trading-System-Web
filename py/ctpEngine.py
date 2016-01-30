@@ -701,7 +701,7 @@ class MainEngine:
         """插入合约对象"""
         data = event.dict_['data']
         last = event.dict_['last']
-
+        data['_vol_'] = self.dictInstrument.get(data['InstrumentID'],{}).get('_vol_',0)
         if data['ProductID'] not in self.tmpProduct:
             self.tmpProduct[data['ProductID']] = {}
         if data['ExchangeID'] not in self.tmpExchange:
