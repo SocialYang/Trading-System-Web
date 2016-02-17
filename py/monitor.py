@@ -159,6 +159,9 @@ def event_tickclear(_msg):
         Ticks.remove(_id)
     if _id in TickDict:
         TickDict.pop(_id)
+    _doc.clear()
+    for one in Ticks:
+        _doc <= TickDict[one]
 
 PosAccount = set()
 PosInst = set()

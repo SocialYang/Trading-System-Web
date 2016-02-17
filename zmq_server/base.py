@@ -37,11 +37,14 @@ class Base:
 #=====================================================================
     def get_timeframe(self):
         return self.todo
+    def raw_tick(self):
+        _result = self.raw.find(sort=[('_time',desc)],limit=100)
+        return list(_result)
     def get_result(self,passit=1):
         c = self.cache
         s = self.state
         i = self.todo[0]
-
+        
         _Max = 20
         _result = list(self.db[i].find({},sort=[('_id',desc)],limit=_Max))
 
@@ -144,11 +147,11 @@ class Base:
     def check_base(self,pos,_todo,_last):
         _todo['_do'] = 1
         self.save(pos,_todo)
-        self.get_result(passit=0)
         if _last:
             self.cache[pos] = [_todo,_last]
         else:
             self.cache[pos] = [_todo]
+        self.get_result(passit=0)
         return _todo
     def check_k_period(self,now,last,timeframe):
         _hour = int(self.timer/int(timeframe))
