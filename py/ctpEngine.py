@@ -191,7 +191,7 @@ class SymbolOrdersManager:
                     if self.__status.get(_reverse,{}).get(_YDPOSITIONDATE_,0)>0:
                         self.closePosition(d_reverse,self.__status[_reverse][_YDPOSITIONDATE_])
                     if self.__status.get(_reverse,{}).get(_TODAYPOSITIONDATE_,0)>0:
-                        if self.productid in ['IF','IH','IC']:
+                        if self.exchange in ['SHFE']:
                             self.closeTodayPosition(d_reverse,self.__status[_reverse][_TODAYPOSITIONDATE_])
                         else:
                             self.closePosition(d_reverse,self.__status[_reverse][_TODAYPOSITIONDATE_])
@@ -211,7 +211,7 @@ class SymbolOrdersManager:
                             # 昨仓全平 今仓平一部分
                             self.closePosition(_pass,_old_old)
                             _old[_YDPOSITIONDATE_] = 0
-                            if self.productid in ['IF','IH','IC']:
+                            if self.exchange in ['SHFE']:
                                 self.closeTodayPosition(_pass,_todo-_haved-_old_old)
                             else:
                                 self.closePosition(_pass,_todo-_haved-_old_old)
@@ -233,14 +233,14 @@ class SymbolOrdersManager:
                         if long_st.get(_YDPOSITIONDATE_,0)>0:
                             self.closePosition(1,long_st[_YDPOSITIONDATE_])
                         if long_st.get(_TODAYPOSITIONDATE_,0)>0:
-                            if self.productid in ['IF','IH','IC']:
+                            if self.exchange in ['SHFE']:
                                 self.closeTodayPosition(1,long_st[_TODAYPOSITIONDATE_])
                             else:
                                 self.closePosition(1,long_st[_TODAYPOSITIONDATE_])
                         if short_st.get(_YDPOSITIONDATE_,0)>0:
                             self.closePosition(-1,short_st[_YDPOSITIONDATE_])
                         if short_st.get(_TODAYPOSITIONDATE_,0)>0:
-                            if self.productid in ['IF','IH','IC']:
+                            if self.exchange in ['SHFE']:
                                 self.closeTodayPosition(-1,short_st[_TODAYPOSITIONDATE_])
                             else:
                                 self.closePosition(-1,short_st[_TODAYPOSITIONDATE_])
