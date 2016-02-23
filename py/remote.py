@@ -10,10 +10,11 @@ def httpfunc(_dict,_som):
     _url += '/tick/%(account)s/%(eq).2f/%(price).2f/%(symbol)s/%(exchange)s/%(point)d/%(act)s/'%_dict
     try:
         _q = urlopen(_url,timeout=1000)
-        return int(_q.readline())
+        _n = _q.readline()
+        #        print("remote.httpfunc",_n)
+        return int(_n)
     except Exception,e:
-        print('http',_url)
-        print('http',e)
+        print('http',e,_url)
         return 0
 
 def passit(a,b):return 0
