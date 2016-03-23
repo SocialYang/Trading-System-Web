@@ -171,9 +171,10 @@ class SymbolOrdersManager:
                     self.__hold = 0
             else:
                 return
-            if int(self.me.lastError) in [31,50]:
-                self.__orders = {}
-                self.me.lastError = 0
+                #            if int(self.me.lastError) in [31,50]:
+                #self.__orders = {}
+                #self.me.lastError = 0
+            #            self.__hold = 0 #   =========== fot test
             for k,v in self.__orders.items():
                 if time()-v[8]>1:
                     self.__orders.pop(k)
@@ -356,7 +357,7 @@ class MainEngine:
         # 循环查询持仓和账户相关
         self.countGet = 0               # 查询延时计数
         self.lastGet = 'Account'        # 上次查询的性质
-        self.ee.register(EVENT_TDLOGIN, self.initGet)  # 登录成功后开始初始化查询
+        self.ee.register(EVENT_TDLOGIN, self.initGet,True)  # 登录成功后开始初始化查询
 
         self.__timer = time()+3
         self.__readySubscribe = {}
@@ -365,24 +366,24 @@ class MainEngine:
 
         self.get_instrument()
         self.get_subscribe(self.instrument)
-        self.ee.register(EVENT_MDLOGIN,     self.ready_subscribe)
-        self.ee.register(EVENT_TDLOGIN,     self.ready_subscribe)
-        self.ee.register(EVENT_ERROR,       self.get_error)
-        self.ee.register(EVENT_INSTRUMENT,  self.insertInstrument)
-        self.ee.register(EVENT_TIMER,       self.getAccountPosition)
-        self.ee.register(EVENT_TRADE,       self.get_trade)
-        self.ee.register(EVENT_ORDER,       self.get_order)
-        self.ee.register(EVENT_TICK,        self.get_tick)
-        self.ee.register(EVENT_POSITION,    self.get_position)
-        self.ee.register(EVENT_ACCOUNT,     self.get_account)
+        self.ee.register(EVENT_MDLOGIN,     self.ready_subscribe,True)
+        self.ee.register(EVENT_TDLOGIN,     self.ready_subscribe,True)
+        self.ee.register(EVENT_ERROR,       self.get_error,False)
+        self.ee.register(EVENT_INSTRUMENT,  self.insertInstrument,True)
+        self.ee.register(EVENT_TIMER,       self.getAccountPosition,False)
+        self.ee.register(EVENT_TRADE,       self.get_trade,False)
+        self.ee.register(EVENT_ORDER,       self.get_order,False)
+        self.ee.register(EVENT_TICK,        self.get_tick,True)
+        self.ee.register(EVENT_POSITION,    self.get_position,False)
+        self.ee.register(EVENT_ACCOUNT,     self.get_account,False)
 
-        self.ee.register(EVENT_TICK,        self.check_timer)
-        self.ee.register(EVENT_ORDER,       self.check_timer)
+        self.ee.register(EVENT_TICK,        self.check_timer,False)
+        self.ee.register(EVENT_ORDER,       self.check_timer,False)
 
         import eventType
         for k,v in eventType.__dict__.items():
             if 'EVENT_' in k and v[0]!='_':
-                self.ee.register(v,self.websocket_send)
+                self.ee.register(v,self.websocket_send,False)
 
         self.md = ctpMdApi(self, self.mdaddress, self.userid, self.password, self.brokerid, plus_path=_plus_path)    # 创建API接口
         self.td = ctpTdApi(self, self.tdaddress, self.userid, self.password, self.brokerid, plus_path=_plus_path)
@@ -527,7 +528,7 @@ class MainEngine:
                 log = u'主力合约数据获取完毕'
                 event.dict_['log'] = log
                 self.ee.put(event)
-                self.ee.unregister(EVENT_TICK,self.get_mastervol)
+                self.ee.unregister(EVENT_TICK,self.get_mastervol,False)
                 event = Event(type_=EVENT_LOG)
                 log = u'取消合约成交量事件注册'
                 event.dict_['log'] = log
@@ -546,7 +547,7 @@ class MainEngine:
 
             if not self.masterSubed and self.master and self.now.hour==14 and self.now.minute>=50:
                 self.masterSubed = True
-                self.ee.register(EVENT_TICK,self.get_mastervol)
+                self.ee.register(EVENT_TICK,self.get_mastervol,False)
                 event = Event(type_=EVENT_LOG)
                 log = u'注册合约成交量事件'
                 event.dict_['log'] = log
@@ -662,7 +663,7 @@ class MainEngine:
         """在交易服务器登录成功后，开始初始化查询"""
         self.getInstrument()
     #----------------------------------------------------------------------
-    def getInstrument(self):
+    def getInstrument(self,fetch_new=True):
         """获取合约"""
 
         event = Event(type_=EVENT_LOG)
@@ -670,7 +671,7 @@ class MainEngine:
         event.dict_['log'] = log
         self.ee.put(event)
 
-        if self.dictUpdate==date.today():
+        if self.dictUpdate==date.today() and not fetch_new:
 
             event = Event(type_=EVENT_PRODUCT)
             event.dict_['data'] = self.dictProduct
@@ -700,6 +701,7 @@ class MainEngine:
     def insertInstrument(self, event):
         """插入合约对象"""
         data = event.dict_['data']
+        _update_ = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         last = event.dict_['last']
         data['_vol_'] = self.dictInstrument.get(data['InstrumentID'],{}).get('_vol_',0)
         if data['ProductID'] not in self.tmpProduct:
@@ -711,7 +713,13 @@ class MainEngine:
         if data['ProductID'] in data['InstrumentID'] and data['IsTrading']==1:
             self.tmpExchange[data['ExchangeID']][data['ProductID']][data['InstrumentID']] = 1
             self.tmpProduct[data['ProductID']][data['InstrumentID']] = self.dictProduct.get(data['ProductID'],{}).get(data['InstrumentID'],0)
-            self.tmpInstrument[data['InstrumentID']] = data
+            if data['Instrument'] in self.dictProduct:
+                _haved = self.dictProduct[data['Instrument']]
+                _haved['_update_'] = _update_
+                self.tmpInstrument[data['InstrumentID']] = _haved
+            else:
+                data['_update_'] = _update_
+                self.tmpInstrument[data['InstrumentID']] = data
 
         # 合约对象查询完成后，查询投资者信息并开始循环查询
         if last:

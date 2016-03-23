@@ -201,7 +201,7 @@ def get_all():
 def account_getinstrument():
     out = []
     for k,one in me.items():
-        one.getInstrument()
+        one.getInstrument(fetch_new=True)
         out.append('account %s getInstrument'%k)
     return '#'.join(out)
 

@@ -5,7 +5,13 @@ from time import sleep
 from thread import start_new_thread as th_fork
 from eventType import *
 import json,shelve
+import datetime as dt
 
+class Event:
+    #----------------------------------------------------------------------
+    def __init__(self, type_=None):
+        self.type_ = type_      # 事件类型
+        self.dict_ = {}         # 字典用于保存具体的事件数据
 ########################################################################
 class EventEngine:
     def __init__(self,account):
@@ -21,6 +27,7 @@ class EventEngine:
         self.__thread = Thread(target = self.__run)
         
         self.__handlers = {}
+        self.__handlers_sync = {}
 
     #----------------------------------------------------------------------
     def __run(self):
@@ -30,14 +37,22 @@ class EventEngine:
                 event = self.__queue.get(block = True, timeout = 5)  # 获取事件的阻塞时间设为5秒
                 self.__process(event)
             except Empty:
-                pass
+                event = Event(type_=EVENT_LOG)
+                log = 'Empty Queue'
+                event.dict_['log'] = log
+                self.put(event)
     #----------------------------------------------------------------------
     def __process(self, event):
         """处理事件"""
         # 检查是否存在对该事件进行监听的处理函数
         if event.type_ in self.__handlers:
             #若存在，则按顺序将事件传递给处理函数执行
-            [handler(event) for handler in self.__handlers[event.type_]]
+            for _h in self.__handlers[event.type_]:
+            
+                if self.__handlers_sync[_h]:
+                    _h(event)
+                else:
+                    th_fork(_h,(event,))
 
     def start(self):
         """引擎启动"""
@@ -60,7 +75,7 @@ class EventEngine:
         self.__thread.join()
             
     #----------------------------------------------------------------------
-    def register(self, type_, handler):
+    def register(self, type_, handler,_sync):
         """注册事件处理函数监听"""
         # 尝试获取该事件类型对应的处理函数列表，若无则创建
         try:
@@ -72,6 +87,7 @@ class EventEngine:
         # 若要注册的处理器不在该事件的处理器列表中，则注册该事件
         if handler not in handlerList:
             handlerList.append(handler)
+            self.__handlers_sync[handler] = _sync
             
     #----------------------------------------------------------------------
     def unregister(self, type_, handler):
@@ -102,8 +118,3 @@ class EventEngine:
 
 
 ########################################################################
-class Event:
-    #----------------------------------------------------------------------
-    def __init__(self, type_=None):
-        self.type_ = type_      # 事件类型
-        self.dict_ = {}         # 字典用于保存具体的事件数据
