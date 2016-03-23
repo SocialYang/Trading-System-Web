@@ -21,7 +21,7 @@ class SymbolOrdersManager:
         self.exchange = data['ExchangeID']
         self.productid = data['ProductID']
         self.pointValue = data['VolumeMultiple']
-        print("init...som.....",str(self.data))
+#        print("init...som.....",str(self.data))
         self.me = me
         self.__lock = Lock()
         self.__maxRetry = 5
@@ -35,7 +35,7 @@ class SymbolOrdersManager:
         self.__timepass = 0
         self.__timerule = Product_Time_Rule.get(self.productid,[lambda x:x>0])#默认交易
         self.__price = {}
-        print("Symbol:",self.data)
+#        print("Symbol:",self.data)
     def openPosition(self,tr,volume):
         print(tr,volume)
         if volume<=0:return
@@ -690,8 +690,8 @@ class MainEngine:
             self.ee.put(event)
             self.td.getInstrument()
     def product_print(self):
-        print("self.dictExchange ",self.dictExchange.keys())
         return(0)
+        print("self.dictExchange ",self.dictExchange.keys())
         for k,v in self.dictProduct.items():
             print(k)
             for _inst,_data in v.items():
