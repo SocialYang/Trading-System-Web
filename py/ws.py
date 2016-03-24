@@ -242,8 +242,8 @@ def update_ctp_accounts(act):
     _accs = act[-1]['data']
     set_accounts(_accs)
 
-def empty_func(act):
-    print(act)
+def empty_func(act):pass
+#    print(act)
 
 funcs = {
     EVENT_EMPTY:empty_func,
