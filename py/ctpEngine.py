@@ -713,8 +713,8 @@ class MainEngine:
         if data['ProductID'] in data['InstrumentID'] and data['IsTrading']==1:
             self.tmpExchange[data['ExchangeID']][data['ProductID']][data['InstrumentID']] = 1
             self.tmpProduct[data['ProductID']][data['InstrumentID']] = self.dictProduct.get(data['ProductID'],{}).get(data['InstrumentID'],0)
-            if data['Instrument'] in self.dictProduct:
-                _haved = self.dictProduct[data['Instrument']]
+            if data['InstrumentID'] in self.dictProduct:
+                _haved = self.dictProduct[data['InstrumentID']]
                 _haved['_update_'] = _update_
                 self.tmpInstrument[data['InstrumentID']] = _haved
             else:
