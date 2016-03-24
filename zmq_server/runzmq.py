@@ -5,6 +5,9 @@ import time
 import zmq
 import json
 import requests
+from cmath import log as mathclog
+from life import price2point
+def mathlog(a):return mathclog(a).real
 
 context = zmq.Context()
 socket = context.socket(zmq.REP)
@@ -19,7 +22,7 @@ def get_result(_msg):
         _exchange = _msg.get("exchange","test")
         _money = _msg.get("eq","1.0")
         _price = _msg.get("price",1.0)
-        _point = mathlog(_price)*3400
+        _point = price2point(_price,_msg['point'],mathlog)
         b = Base(_exchange,_symbol,conn,allstate)
         b.account_money(float(_money))
         b.new_price(time.time(),_point,_price)

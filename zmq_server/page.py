@@ -142,7 +142,7 @@ def get_result(account,eq,price,symbol,exchange,point):
     _account = account
     _money = float(eq)
     _price = float(price)
-    _point = mathlog(_price*(1+mathlog(int(point))))*3000
+    _point = price2point(_price,int(point),mathlog)
     _symbol = symbol
     _exchange = "ctp"
     _begin = time.time()
