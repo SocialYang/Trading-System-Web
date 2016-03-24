@@ -136,10 +136,14 @@ class Base:
     def get_image(self,pos,lens,group,offset=0):
         result = list(self.db[pos].find(sort=[('_id',desc)],limit=int(lens),skip=int(offset)*int(lens)))
         _l = self.state.get('his',['none'])[::-1]
+        if len(result)<int(lens):
+            result = result[:-1]
         out = SVG(group,result[::-1],_l).to_html()
         return out
     def only_image(self,pos,lens,group,offset=0):
         result = list(self.db[pos].find(sort=[('_id',desc)],limit=int(lens),skip=int(offset)*int(lens)))
+        if len(result)<int(lens):
+            result = result[:-1]
         out = SVG(group,result[::-1],[str(datetime.datetime.now())]).to_html()
         return out
     def save(self,Pos,Dict):
