@@ -34,7 +34,7 @@ class EventEngine:
         """引擎运行"""
         while self.__active == True:
             try:
-                event = self.__queue.get(block = True, timeout = 5)  # 获取事件的阻塞时间设为5秒
+                event = self.__queue.get(block = True, timeout = 10)  # 获取事件的阻塞时间设为10秒
                 self.__process(event)
             except Empty:
                 event = Event(type_=EVENT_LOG)

@@ -10,6 +10,9 @@ from string import uppercase as _CHARS
 _YDPOSITIONDATE_ = '2'
 _TODAYPOSITIONDATE_ = '1'
 
+_LONGDIRECTION_ = '2'
+_SHORTDIRECTION_ = '3'
+
 from ctpApi import *
 from eventEngine import EventEngine
 from threading import Lock
@@ -21,12 +24,10 @@ class SymbolOrdersManager:
         self.exchange = data['ExchangeID']
         self.productid = data['ProductID']
         self.pointValue = data['VolumeMultiple']
-#        print("init...som.....",str(self.data))
         self.me = me
         self.__lock = Lock()
         self.__maxRetry = 5
         self.__status = {}
-        self.__stlist = set()
         self.__orders = {}
         self.__hold = 0
         self.__signal = 0
@@ -35,12 +36,11 @@ class SymbolOrdersManager:
         self.__timepass = 0
         self.__timerule = Product_Time_Rule.get(self.productid,[lambda x:x>0])#默认交易
         self.__price = {}
-#        print("Symbol:",self.data)
     def openPosition(self,tr,volume):
-        print(tr,volume)
+        print(tr,volume,'SymbolOrdersManager.openPosition')
         if volume<=0:return
         event = Event(type_=EVENT_LOG)
-        log = u'开仓[%s] %d %d'%(self.symbol,tr,volume)
+        log = u'开仓[%s] 方向[%d] 数量[%d]'%(self.symbol,tr,volume)
         event.dict_['log'] = log
         self.me.ee.put(event)
         self.me.countGet = -2
@@ -56,10 +56,10 @@ class SymbolOrdersManager:
         _ref = self.me.td.sendOrder(self.symbol,exchangeid,price,pricetype,volume,direction,offset)
         self.__orders[_ref] = (self.symbol,exchangeid,price,pricetype,volume,direction,offset,0,time())
     def closePosition(self,tr,volume):
-        print(tr,volume)
+        print(tr,volume,'SymbolOrdersManager.closePosition')
         if volume<=0:return
         event = Event(type_=EVENT_LOG)
-        log = u'平仓[%s] %d %d'%(self.symbol,tr,volume)
+        log = u'平仓[%s] 方向[%d] 数量[%d]'%(self.symbol,tr,volume)
         event.dict_['log'] = log
         self.me.ee.put(event)
         self.me.countGet = -2
@@ -75,10 +75,10 @@ class SymbolOrdersManager:
         _ref = self.me.td.sendOrder(self.symbol,exchangeid,price,pricetype,volume,direction,offset)
         self.__orders[_ref] = (self.symbol,exchangeid,price,pricetype,volume,direction,offset,0,time())
     def closeTodayPosition(self,tr,volume):
-        print(tr,volume)
+        print(tr,volume,'SymbolOrdersManager.closeTodayPosition')
         if volume<=0:return
         event = Event(type_=EVENT_LOG)
-        log = u'平今仓[%s] %d %d'%(self.symbol,tr,volume)
+        log = u'平今仓[%s] 方向[%d] 数量[%d]'%(self.symbol,tr,volume)
         event.dict_['log'] = log
         self.me.ee.put(event)
         self.me.countGet = -2
@@ -171,10 +171,7 @@ class SymbolOrdersManager:
                     self.__hold = 0
             else:
                 return
-                #            if int(self.me.lastError) in [31,50]:
-                #self.__orders = {}
-                #self.me.lastError = 0
-            #            self.__hold = 0 #   =========== fot test
+            
             for k,v in self.__orders.items():
                 if time()-v[8]>1:
                     self.__orders.pop(k)
@@ -185,8 +182,6 @@ class SymbolOrdersManager:
                 _short      =   defineDict["THOST_FTDC_PD_Short"]
                 long_st     =   self.__status.get(_long,{})
                 short_st    =   self.__status.get(_short,{})
-
-#                print(self.symbol,self.__status,"BEFORE",self.__hold)
 
                 def do_it(_todo,_pass,_reverse,d_pass,d_reverse):
                     if self.__status.get(_reverse,{}).get(_YDPOSITIONDATE_,0)>0:
@@ -227,7 +222,7 @@ class SymbolOrdersManager:
                             _old[_YDPOSITIONDATE_] = _old_old - (_todo-_haved)
 
                     self.__status[_pass] = _old
-
+            
                 if self.__signal!=self.__hold:
                     self.__signal = self.__hold
                     if self.__hold==0:
@@ -273,31 +268,39 @@ class SymbolOrdersManager:
                         d_reverse = 1
                         do_it(_todo,_pass,_reverse,d_pass,d_reverse)
 
-#                print(self.symbol,self.__status,"AFTER",self.__hold)
     def onposi(self,event):#pass
-        _data = event.dict_['data']
-        _dir = _data['PosiDirection']
-        _date = _data['PositionDate']
-        _vol = _data['Position']
+        _dict = event.dict_['data']
+        _dict.pop('InstrumentID')
+        
         with self.__lock:
-            _old = self.__status.get(_dir,{})
-            _old[_date] = _vol
-            self.__status[_dir] = _old
-            if (_dir,_date) in self.__stlist:
-                for k,v in self.__status.items():
-                    _dict = {}
-                    _dict['InstrumentID'] = self.symbol
-                    _dict['PosiDirection'] = k
-                    _dict['TodayPosition'] = v.get(_TODAYPOSITIONDATE_,0)
-                    _dict['YdPosition'] = v.get(_YDPOSITIONDATE_,0)
-                    _dict['Position'] = _dict['TodayPosition']+_dict['YdPosition']
-                    event = Event(type_=EVENT_POSIALL)
-                    event.dict_['data'] = _dict
-                    self.me.ee.put(event)
-                self.__stlist = set()
-                self.__stlist.add((_dir,_date))
-            else:
-                self.__stlist.add((_dir,_date))
+            self.__status = {}
+            _hold = 0
+            for k,_vol in _dict.items():
+                _dir,_date = k
+                _old = self.__status.get(_dir,{})
+                _old[_date] = _vol
+                if _dir==_LONGDIRECTION_:
+                    _hold+= _vol
+                elif _dir==_SHORTDIRECTION_:
+                    _hold-=_vol
+                else:
+                    print('SymbolOrdersManager.onposition,UNKNOW_DIRECTION')
+                self.__status[_dir] = _old
+            
+            self.__hold = _hold
+            print('hold',self.__hold,'status',self.__status,'SymbolOrdersManager.onposition')
+
+            for k,v in self.__status.items():
+                event2 = Event(type_=EVENT_POSIALL)
+                data = {}
+                data['InstrumentID']    = self.symbol
+                data['PosiDirection']   = k
+                data['TodayPosition']   = v.get(_TODAYPOSITIONDATE_,0)
+                data['YdPosition']      = v.get(_YDPOSITIONDATE_,0)
+                data['Position']        = data['TodayPosition']+data['YdPosition']
+                event2.dict_['data'] = data
+                event2.symbol = event.symbol
+                self.me.ee.put(event2)
 
         if (self.symbol,self.exchange) not in self.me.subedInstrument:
             self.me.subscribe(self.symbol, self.exchange)
@@ -374,11 +377,10 @@ class MainEngine:
         self.ee.register(EVENT_TRADE,       self.get_trade,False)
         self.ee.register(EVENT_ORDER,       self.get_order,False)
         self.ee.register(EVENT_TICK,        self.get_tick,True)
-        self.ee.register(EVENT_POSITION,    self.get_position,False)
+        self.ee.register(EVENT_POSITION,    self.get_position,True)
         self.ee.register(EVENT_ACCOUNT,     self.get_account,False)
 
         self.ee.register(EVENT_TICK,        self.check_timer,False)
-        self.ee.register(EVENT_ORDER,       self.check_timer,False)
 
         import eventType
         for k,v in eventType.__dict__.items():

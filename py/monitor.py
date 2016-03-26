@@ -255,7 +255,7 @@ def ws_msg(ev):
 
 def reconnect():
     add_log("重连ing")
-#    window.location.reload()
+    window.location.reload()
 
 def ws_open():
     if 'ws_server' not in storage or storage['ws_server'] not in document['websocket_ip'].value:
