@@ -6,12 +6,13 @@ import zmq
 from remote import *
 from string import lowercase as _chars
 from string import uppercase as _CHARS
+from ctp_data_type import defineDict
 
-_YDPOSITIONDATE_ = '2'
-_TODAYPOSITIONDATE_ = '1'
+_TODAYPOSITIONDATE_ = defineDict["THOST_FTDC_PSD_Today"]#'1'
+_YDPOSITIONDATE_    = defineDict["THOST_FTDC_PSD_History"]#'2'
 
-_LONGDIRECTION_ = '2'
-_SHORTDIRECTION_ = '3'
+_LONGDIRECTION_     = defineDict["THOST_FTDC_PD_Long"]#'2'
+_SHORTDIRECTION_    = defineDict["THOST_FTDC_PD_Short"]#'3'
 
 from ctpApi import *
 from eventEngine import EventEngine
